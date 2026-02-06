@@ -1,0 +1,1406 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manual del Sistema MULTI-TIMEFRAME WGTA PRO</title>
+    <style>
+        :root {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-tertiary: #334155;
+            --text-primary: #f1f5f9;
+            --text-secondary: #cbd5e1;
+            --text-accent: #60a5fa;
+            --border-color: #475569;
+            --success-color: #10b981;
+            --warning-color: #f59e0b;
+            --danger-color: #ef4444;
+            --info-color: #3b82f6;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            padding: 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .container {
+            background-color: var(--bg-secondary);
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border-color);
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid var(--border-color);
+        }
+        
+        .header h1 {
+            color: var(--text-accent);
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+        }
+        
+        .header .subtitle {
+            color: var(--text-secondary);
+            font-size: 1.2rem;
+        }
+        
+        .return-button {
+            display: inline-block;
+            background-color: var(--info-color);
+            color: white;
+            padding: 12px 24px;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: bold;
+            margin-top: 20px;
+            transition: all 0.3s ease;
+            border: none;
+            cursor: pointer;
+            font-size: 1rem;
+        }
+        
+        .return-button:hover {
+            background-color: #2563eb;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+        }
+        
+        .section {
+            margin-bottom: 40px;
+            padding: 25px;
+            background-color: var(--bg-tertiary);
+            border-radius: 8px;
+            border-left: 4px solid var(--info-color);
+        }
+        
+        .section-title {
+            color: var(--text-accent);
+            font-size: 1.8rem;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .subsection {
+            margin-bottom: 25px;
+            padding: 15px;
+            background-color: rgba(30, 41, 59, 0.5);
+            border-radius: 6px;
+        }
+        
+        .subsection-title {
+            color: var(--text-secondary);
+            font-size: 1.4rem;
+            margin-bottom: 15px;
+        }
+        
+        .strategy-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .strategy-card {
+            background: linear-gradient(145deg, #1e293b, #0f172a);
+            border-radius: 8px;
+            padding: 20px;
+            border: 1px solid var(--border-color);
+            transition: transform 0.3s ease;
+        }
+        
+        .strategy-card:hover {
+            transform: translateY(-5px);
+            border-color: var(--info-color);
+        }
+        
+        .strategy-name {
+            color: var(--success-color);
+            font-size: 1.3rem;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+        
+        .strategy-timeframes {
+            color: var(--warning-color);
+            font-size: 0.9rem;
+            margin-bottom: 15px;
+            font-style: italic;
+        }
+        
+        .strategy-description {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            margin-bottom: 15px;
+        }
+        
+        .indicator-list {
+            list-style-type: none;
+            padding-left: 0;
+        }
+        
+        .indicator-list li {
+            padding: 5px 0;
+            color: var(--text-secondary);
+            border-bottom: 1px dashed var(--border-color);
+        }
+        
+        .indicator-list li:last-child {
+            border-bottom: none;
+        }
+        
+        .step-by-step {
+            background-color: rgba(15, 23, 42, 0.7);
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+        
+        .step {
+            margin-bottom: 15px;
+            padding-left: 20px;
+            position: relative;
+        }
+        
+        .step:before {
+            content: counter(step);
+            counter-increment: step;
+            position: absolute;
+            left: 0;
+            top: 0;
+            background-color: var(--info-color);
+            color: white;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.9rem;
+            font-weight: bold;
+        }
+        
+        .step-by-step {
+            counter-reset: step;
+        }
+        
+        .note {
+            background-color: rgba(245, 158, 11, 0.1);
+            border-left: 4px solid var(--warning-color);
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+        
+        .note strong {
+            color: var(--warning-color);
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            background-color: var(--bg-secondary);
+            border-radius: 6px;
+            overflow: hidden;
+        }
+        
+        th {
+            background-color: var(--bg-tertiary);
+            color: var(--text-accent);
+            padding: 12px 15px;
+            text-align: left;
+            font-weight: 600;
+        }
+        
+        td {
+            padding: 12px 15px;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--text-secondary);
+        }
+        
+        tr:last-child td {
+            border-bottom: none;
+        }
+        
+        tr:hover {
+            background-color: rgba(51, 65, 85, 0.3);
+        }
+        
+        .timeframe-hierarchy {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .timeframe-card {
+            background-color: var(--bg-tertiary);
+            padding: 15px;
+            border-radius: 6px;
+            text-align: center;
+            border: 1px solid var(--border-color);
+        }
+        
+        .timeframe-label {
+            color: var(--text-accent);
+            font-weight: bold;
+            font-size: 1.1rem;
+            margin-bottom: 5px;
+        }
+        
+        .timeframe-value {
+            color: var(--success-color);
+            font-size: 1rem;
+        }
+        
+        .risk-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            margin-right: 8px;
+            margin-bottom: 8px;
+        }
+        
+        .risk-low {
+            background-color: rgba(16, 185, 129, 0.2);
+            color: var(--success-color);
+            border: 1px solid var(--success-color);
+        }
+        
+        .risk-medium {
+            background-color: rgba(245, 158, 11, 0.2);
+            color: var(--warning-color);
+            border: 1px solid var(--warning-color);
+        }
+        
+        .risk-high {
+            background-color: rgba(239, 68, 68, 0.2);
+            color: var(--danger-color);
+            border: 1px solid var(--danger-color);
+        }
+        
+        .risk-memecoin {
+            background-color: rgba(139, 92, 246, 0.2);
+            color: #8b5cf6;
+            border: 1px solid #8b5cf6;
+        }
+        
+        .signal-long {
+            color: var(--success-color);
+            font-weight: bold;
+        }
+        
+        .signal-short {
+            color: var(--danger-color);
+            font-weight: bold;
+        }
+        
+        .signal-neutral {
+            color: var(--text-secondary);
+            font-weight: bold;
+        }
+        
+        footer {
+            text-align: center;
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+            }
+            
+            .strategy-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .section {
+                padding: 15px;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>MULTI-TIMEFRAME WGTA PRO</h1>
+            <p class="subtitle">Sistema Avanzado de Trading con 12 Estrategias Integradas para 6 Criptomonedas Principales</p>
+            <a href="/" class="return-button">← Volver al Sistema de Trading</a>
+        </div>
+
+        <div class="section">
+            <h2 class="section-title">1. Introducción al Sistema WGTA PRO</h2>
+            <p>El sistema MULTI-TIMEFRAME WGTA PRO es una plataforma de análisis técnico avanzado diseñada para operar en mercados de criptomonedas. Integra 12 estrategias de trading distintas, cada una optimizada para diferentes condiciones de mercado y temporalidades mayores.</p>
+            
+            <div class="subsection">
+                <h3 class="subsection-title">1.1 Filosofía del Sistema</h3>
+                <p>El sistema opera bajo la premisa de que ninguna estrategia individual es efectiva en todas las condiciones de mercado. Por ello, implementa múltiples enfoques que se activan según el contexto del mercado, la temporalidad y las características específicas del activo.</p>
+                
+                <p>La arquitectura del sistema se basa en tres pilares fundamentales:</p>
+                <ul class="indicator-list">
+                    <li><strong>Multi-Temporalidad:</strong> Análisis simultáneo en 4 temporalidades principales (4h, 12h, 1D, 1W)</li>
+                    <li><strong>Confirmación Multi-Indicador:</strong> Validación de señales mediante múltiples indicadores técnicos propietarios</li>
+                    <li><strong>Gestión Dinámica de Riesgo:</strong> Ajuste automático de parámetros según la volatilidad y condiciones del mercado</li>
+                </ul>
+            </div>
+            
+            <div class="subsection">
+                <h3 class="subsection-title">1.2 Símbolos y Temporalidades</h3>
+                <p>El sistema monitorea 6 criptomonedas principales en temporalidades mayores:</p>
+                
+                <div style="margin: 20px 0;">
+                    <span class="risk-badge risk-low">BTC-USDT</span>
+                    <span class="risk-badge risk-low">ETH-USDT</span>
+                    <span class="risk-badge risk-medium">SOL-USDT</span>
+                    <span class="risk-badge risk-medium">ADA-USDT</span>
+                    <span class="risk-badge risk-medium">XRP-USDT</span>
+                    <span class="risk-badge risk-high">XAUT-USDT</span>
+                </div>
+                
+                <p>Temporalidades principales del sistema: 4 horas, 12 horas, 1 día y 1 semana. Cada estrategia está optimizada para temporalidades específicas.</p>
+            </div>
+            
+            <div class="subsection">
+                <h3 class="subsection-title">1.3 Jerarquía de Temporalidades</h3>
+                <p>El sistema implementa análisis multi-temporalidad con jerarquías definidas:</p>
+                
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Temporalidad Principal</th>
+                            <th>Temporalidad Mayor</th>
+                            <th>Temporalidad Media</th>
+                            <th>Temporalidad Menor</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>4 horas</td>
+                            <td>8 horas</td>
+                            <td>4 horas</td>
+                            <td>2 horas</td>
+                        </tr>
+                        <tr>
+                            <td>12 horas</td>
+                            <td>1 día</td>
+                            <td>12 horas</td>
+                            <td>4 horas</td>
+                        </tr>
+                        <tr>
+                            <td>1 día</td>
+                            <td>1 semana</td>
+                            <td>1 día</td>
+                            <td>12 horas</td>
+                        </tr>
+                        <tr>
+                            <td>1 semana</td>
+                            <td>1 mes</td>
+                            <td>1 semana</td>
+                            <td>3 días</td>
+                        </tr>
+                    </tbody>
+                </table>
+                
+                <div class="note">
+                    <strong>Nota:</strong> El sistema opera principalmente en temporalidades mayores para evitar ruido de mercado y capturar movimientos significativos.
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2 class="section-title">2. Indicadores Técnicos del Sistema</h2>
+            
+            <div class="subsection">
+                <h3 class="subsection-title">2.1 FTMaverick (Fuerza de Tendencia Maverick)</h3>
+                <p>Indicador propietario que mide la intensidad y calidad de la tendencia mediante el análisis del ancho de las Bandas de Bollinger y su comportamiento dinámico.</p>
+                
+                <p><strong>Explicación básica:</strong> Mide qué tan fuerte es la tendencia actual analizando qué tan separadas están las Bandas de Bollinger. Cuando las bandas se expanden y la fuerza es positiva, indica tendencia alcista fuerte. Cuando se expanden y la fuerza es negativa, indica tendencia bajista fuerte.</p>
+                
+                <p><strong>Explicación técnica:</strong> Calcula la desviación estándar del precio en una ventana de 20 periodos, multiplica por 2 para crear bandas superior e inferior. La fuerza de tendencia se calcula comparando el ancho actual de las bandas con el histórico. Identifica "Zonas No-Operar" donde la volatilidad es excesiva (percentil 70 histórico).</p>
+                
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Señal FTMaverick</th>
+                            <th>Interpretación</th>
+                            <th>Uso en Señales</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><span class="signal-long">STRONG_UP</span></td>
+                            <td>Tendencia alcista fuerte con alta volatilidad y bandas expandiéndose</td>
+                            <td>Confirmación para señales LONG, evita señales SHORT</td>
+                        </tr>
+                        <tr>
+                            <td><span class="signal-long">WEAK_UP</span></td>
+                            <td>Tendencia alcista débil o en formación, bandas moderadas</td>
+                            <td>Confirmación condicional para LONG, requiere más filtros</td>
+                        </tr>
+                        <tr>
+                            <td><span class="signal-neutral">NEUTRAL</span></td>
+                            <td>Mercado lateral o sin tendencia definida, bandas estrechas</td>
+                            <td>No genera señales, sugiere esperar</td>
+                        </tr>
+                        <tr>
+                            <td><span class="signal-short">WEAK_DOWN</span></td>
+                            <td>Tendencia bajista débil o en formación, bandas moderadas</td>
+                            <td>Confirmación condicional para SHORT, requiere más filtros</td>
+                        </tr>
+                        <tr>
+                            <td><span class="signal-short">STRONG_DOWN</span></td>
+                            <td>Tendencia bajista fuerte con alta volatilidad, bandas expandidas</td>
+                            <td>Confirmación para señales SHORT, evita señales LONG</td>
+                        </tr>
+                    </tbody>
+                </table>
+                
+                <div class="note">
+                    <strong>Zonas No-Operar:</strong> El FTMaverick identifica zonas donde el ancho de las Bandas de Bollinger es excesivo (> percentil 70 histórico) y la fuerza de tendencia es decreciente. En estas zonas, el sistema evita generar señales para proteger el capital.
+                </div>
+            </div>
+            
+            <div class="subsection">
+                <h3 class="subsection-title">2.2 RSI Maverick</h3>
+                <p>Versión modificada del RSI tradicional que utiliza Bandas de Bollinger en lugar de niveles fijos de sobrecompra/sobreventa.</p>
+                
+                <p><strong>Explicación básica:</strong> En lugar de usar niveles fijos como 70 y 30, este indicador mide qué tan cerca está el precio de la banda superior o inferior de Bollinger. Un valor de 0.8 significa que el precio está cerca de la banda superior (sobrecompra), 0.2 cerca de la banda inferior (sobreventa).</p>
+                
+                <p><strong>Explicación técnica:</strong> Se calcula como (precio actual - banda inferior) / (banda superior - banda inferior). Usa una ventana de 20 periodos para calcular las bandas de Bollinger con multiplicador 2. Proporciona niveles dinámicos de sobrecompra/sobreventa que se adaptan a la volatilidad actual del mercado.</p>
+                
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Valor RSI Maverick</th>
+                            <th>Interpretación</th>
+                            <th>Acción Recomendada</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>0.0 - 0.15</td>
+                            <td>Sobreventa extrema, precio muy cerca banda inferior</td>
+                            <td>Posible rebote alcista, buscar señales LONG</td>
+                        </tr>
+                        <tr>
+                            <td>0.15 - 0.30</td>
+                            <td>Sobreventa, precio cerca banda inferior</td>
+                            <td>Posible corrección alcista, considerar LONG</td>
+                        </tr>
+                        <tr>
+                            <td>0.30 - 0.70</td>
+                            <td>Zona neutral, precio en centro de bandas</td>
+                            <td>Mercado balanceado, esperar confirmación</td>
+                        </tr>
+                        <tr>
+                            <td>0.70 - 0.85</td>
+                            <td>Sobrecompra, precio cerca banda superior</td>
+                            <td>Posible corrección bajista, considerar SHORT</td>
+                        </tr>
+                        <tr>
+                            <td>0.85 - 1.00</td>
+                            <td>Sobrecompra extrema, precio muy cerca banda superior</td>
+                            <td>Posible reversión bajista, buscar señales SHORT</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="subsection">
+                <h3 class="subsection-title">2.3 RSI Estocástico (Stochastic RSI)</h3>
+                <p>Combinación del RSI tradicional con el oscilador estocástico para mayor precisión en la identificación de reversiones.</p>
+                
+                <p><strong>Explicación básica:</strong> Mide la posición del RSI dentro de su rango reciente. Tiene dos líneas: %K (rápida) y %D (lenta). Cuando %K cruza por encima de %D desde abajo en zona de sobreventa, es señal alcista. Cuando %K cruza por debajo de %D desde arriba en zona de sobrecompra, es señal bajista.</p>
+                
+                <p><strong>Explicación técnica:</strong> Calcula primero el RSI tradicional (14 periodos), luego aplica la fórmula estocástica: (RSI actual - mínimo RSI) / (máximo RSI - mínimo RSI) en una ventana de 14 periodos. %K es la media móvil de 3 periodos del resultado, %D es la media móvil de 3 periodos de %K.</p>
+                
+                <div class="note">
+                    <strong>Interpretación en señales:</strong> El RSI Estocástico es especialmente efectivo en mercados laterales y para identificar reversiones tempranas. En las alertas de Telegram, busca cruces en zonas extremas (sobreventa para LONG, sobrecompra para SHORT) con confirmación de otros indicadores.
+                </div>
+            </div>
+            
+            <div class="subsection">
+                <h3 class="subsection-title">2.4 ADX con DMI (Directional Movement Index)</h3>
+                <p>Indicador que mide la fuerza de la tendencia y su dirección.</p>
+                
+                <p><strong>Explicación básica:</strong> ADX mide qué tan fuerte es la tendencia (sin importar la dirección). +DI mide la fuerza alcista, -DI mide la fuerza bajista. Cuando ADX está por encima de 25 y +DI está por encima de -DI, hay tendencia alcista fuerte. Cuando ADX está por encima de 25 y -DI está por encima de +DI, hay tendencia bajista fuerte.</p>
+                
+                <p><strong>Explicación técnica:</strong> Calcula el True Range (TR), el Movimiento Direccional Positivo (+DM) y Negativo (-DM). Suaviza estos valores con EMA de 14 periodos. +DI = 100 * (+DM suavizado / TR suavizado), -DI = 100 * (-DM suavizado / TR suavizado). ADX = EMA de 14 periodos del DX, donde DX = 100 * |(+DI - -DI)| / (+DI + -DI).</p>
+                
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Condición ADX/DMI</th>
+                            <th>Interpretación</th>
+                            <th>Uso en Estrategias</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>ADX > 25, +DI > -DI</td>
+                            <td>Tendencia alcista fuerte confirmada</td>
+                            <td>Confirmación para estrategias de tendencia LONG</td>
+                        </tr>
+                        <tr>
+                            <td>ADX > 25, -DI > +DI</td>
+                            <td>Tendencia bajista fuerte confirmada</td>
+                            <td>Confirmación para estrategias de tendencia SHORT</td>
+                        </tr>
+                        <tr>
+                            <td>ADX < 25</td>
+                            <td>Mercado lateral o sin tendencia</td>
+                            <td>Usar estrategias de rango o esperar</td>
+                        </tr>
+                        <tr>
+                            <td>ADX creciente</td>
+                            <td>Tendencia fortaleciéndose</td>
+                            <td>Señal adicional de confirmación</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="subsection">
+                <h3 class="subsection-title">2.5 Indicador de Ballenas Mejorado</h3>
+                <p>Sistema avanzado para detectar actividad institucional mediante análisis de volumen y comportamiento de precio.</p>
+                
+                <p><strong>Explicación básica:</strong> Detecta cuando grandes jugadores (ballenas) están comprando o vendiendo. Busca anomalías de volumen (volumen 1.5x mayor que el promedio) combinadas con movimientos de precio específicos. Señales "Bomba" indican compra institucional en mínimos, señales "Descarga" indican venta institucional en máximos.</p>
+                
+                <p><strong>Explicación técnica:</strong> Calcula el ratio volumen/promedio, identifica anomalías (>1.5x). Para señal de compra: volumen alto + precio haciendo mínimo local + precio cerca de soporte. Para señal de venta: volumen alto + precio haciendo máximo local + precio cerca de resistencia. La señal se extiende por 7 velas para capturar movimientos institucionales prolongados.</p>
+                
+                <div class="note">
+                    <strong>Característica clave:</strong> Las señales de ballenas se extienden por 7 periodos (velas) porque la actividad institucional suele durar varios periodos. En las alertas de Telegram, cuando ves "Señal ballenas extendida (7 velas) confirmada", significa que hay actividad institucional sostenida.
+                </div>
+            </div>
+            
+            <div class="subsection">
+                <h3 class="subsection-title">2.6 Sistema de Detección de Divergencias</h3>
+                <p>Sistema dual para detectar divergencias entre precio e indicadores.</p>
+                
+                <p><strong>Explicación básica:</strong> Una divergencia ocurre cuando el precio y un indicador se mueven en direcciones opuestas. Divergencia alcista: precio hace nuevo mínimo pero el indicador hace mínimo más alto. Divergencia bajista: precio hace nuevo máximo pero el indicador hace máximo más bajo.</p>
+                
+                <p><strong>Explicación técnica:</strong> El sistema implementa dos tipos de detección:</p>
+                <ul class="indicator-list">
+                    <li><strong>Divergencia Tradicional:</strong> Usa RSI tradicional de 14 periodos, lookback de 14 velas, señal extendida por 7 velas</li>
+                    <li><strong>Divergencia Maverick:</strong> Usa RSI Maverick, lookback de 14 velas, señal extendida por 4 velas (más sensible)</li>
+                </ul>
+                
+                <p>Las divergencias indican debilidad en la tendencia actual y posibles reversiones.</p>
+            </div>
+            
+            <div class="subsection">
+                <h3 class="subsection-title">2.7 Sistema de Anomalías de Volumen</h3>
+                <p>Detección estadística de actividad anormal en el volumen.</p>
+                
+                <p><strong>Explicación básica:</strong> Identifica momentos donde el volumen es significativamente mayor que lo normal. Un clúster de volumen (2+ anomalías en 5 periodos) indica interés institucional sostenido. Determina si es compra o venta basándose en la dirección del precio durante la anomalía.</p>
+                
+                <p><strong>Explicación técnica:</strong> Calcula la media móvil de volumen de 20 periodos y la desviación estándar. Anomalía = volumen > media + (2 × desviación estándar). Clúster = ≥2 anomalías en 5 periodos. Señal de compra = anomalía + precio subiendo. Señal de venta = anomalía + precio bajando.</p>
+            </div>
+            
+            <div class="subsection">
+                <h3 class="subsection-title">2.8 Sistema de Soporte y Resistencia Dinámico</h3>
+                <p>Calcula niveles clave de soporte y resistencia basados en análisis técnico.</p>
+                
+                <p><strong>Explicación básica:</strong> Los soportes son niveles donde el precio tiende a encontrar compradores, las resistencias donde tiende a encontrar vendedores. El sistema calcula 6 niveles dinámicos usando pivot points, niveles Fibonacci y máximos/mínimos recientes.</p>
+                
+                <p><strong>Explicación técnica:</strong> Pivot Point = (alto + bajo + cierre) / 3. R1 = 2 × pivot - bajo. S1 = 2 × pivot - alto. R2 = pivot + (alto - bajo). S2 = pivot - (alto - bajo). Agrega máximos/mínimos de los últimos 50 periodos. Elimina duplicados y ordena.</p>
+                
+                <p>En las alertas de Telegram, estos niveles se usan para determinar entradas (cerca de soportes para LONG, cerca de resistencias para SHORT) y take profits.</p>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2 class="section-title">3. Las 12 Estrategias Especializadas</h2>
+            <p>Cada estrategia está diseñada para condiciones específicas de mercado y temporalidades mayores (4h, 12h, 1D, 1W).</p>
+            
+            <div class="strategy-grid">
+                <!-- Estrategia 1 -->
+                <div class="strategy-card">
+                    <div class="strategy-name">1. MOMENTUM DIVERGENCE</div>
+                    <div class="strategy-timeframes">TF: 4h, 12h, 1D, 1W</div>
+                    <p class="strategy-description">Captura reversiones mediante divergencias confirmadas entre precio e indicadores de momentum.</p>
+                    <ul class="indicator-list">
+                        <li>Divergencia RSI Tradicional confirmada (14 velas, señal 7 velas)</li>
+                        <li>Divergencia RSI Maverick confirmada (14 velas, señal 4 velas)</li>
+                        <li>Clúster de volumen confirmado (2+ anomalías/5 velas)</li>
+                        <li>Confirmación FTMaverick en dirección correcta</li>
+                        <li>Precio > MA9 y MA21 para LONG, < para SHORT</li>
+                    </ul>
+                    <div class="note">
+                        <strong>Interpretación en Telegram:</strong> Busca "Divergencia RSI Tradicional confirmada" y "Divergencia RSI Maverick confirmada" juntas. Esto indica una reversión fuerte con confirmación múltiple.
+                    </div>
+                </div>
+                
+                <!-- Estrategia 2 -->
+                <div class="strategy-card">
+                    <div class="strategy-name">2. ADX POWER TREND</div>
+                    <div class="strategy-timeframes">TF: 4h, 12h, 1D</div>
+                    <p class="strategy-description">Enfocado en tendencias fuertes con directional movement intenso.</p>
+                    <ul class="indicator-list">
+                        <li>ADX > 30 y creciente (fuerza tendencia)</li>
+                        <li>Cruce +DI/-DI confirmado (dirección)</li>
+                        <li>Precio > MA21 para LONG, < para SHORT</li>
+                        <li>Confirmación FTMaverick en dirección correcta</li>
+                        <li>Evita Zonas No-Operar del FTMaverick</li>
+                    </ul>
+                    <div class="note">
+                        <strong>Interpretación en Telegram:</strong> Cuando ves "ADX > 30 y creciente" con cruce DMI, es una tendencia fuerte establecida. Ideal para swing trading.
+                    </div>
+                </div>
+                
+                <!-- Estrategia 3 -->
+                <div class="strategy-card">
+                    <div class="strategy-name">3. MACD HISTOGRAM REVERSAL</div>
+                    <div class="strategy-timeframes">TF: 4h, 12h, 1D</div>
+                    <p class="strategy-description">Detecta reversiones tempranas mediante cambios en el histograma MACD.</p>
+                    <ul class="indicator-list">
+                        <li>Reversión del histograma MACD (negativo a positivo para LONG, viceversa)</li>
+                        <li>Cruce MA9/MA21 confirmado en dirección</li>
+                        <li>RSI Maverick en zona neutral (0.3-0.7)</li>
+                        <li>FTMaverick en dirección correcta</li>
+                        <li>Evita Zonas No-Operar</li>
+                    </ul>
+                    <div class="note">
+                        <strong>Interpretación en Telegram:</strong> "Reversión histograma MACD confirmada" indica cambio temprano en momentum antes de que se complete el cruce de líneas MACD.
+                    </div>
+                </div>
+                
+                <!-- Estrategia 4 -->
+                <div class="strategy-card">
+                    <div class="strategy-name">4. VOLUME SPIKE MOMENTUM</div>
+                    <div class="strategy-timeframes">TF: 4h, 12h, 1D</div>
+                    <p class="strategy-description">Opera movimientos impulsados por actividad anormal de volumen.</p>
+                    <ul class="indicator-list">
+                        <li>Clúster de volumen confirmado (2+ anomalías/5 velas)</li>
+                        <li>Volumen signal COMPRA para LONG, VENTA para SHORT</li>
+                        <li>Precio > MA21 para LONG, < para SHORT</li>
+                        <li>RSI Maverick neutral (0.3-0.7)</li>
+                        <li>FTMaverick en dirección correcta</li>
+                    </ul>
+                    <div class="note">
+                        <strong>Interpretación en Telegram:</strong> "Clúster de volumen confirmado" con señal de compra/venta indica interés institucional sostenido, no solo un spike aislado.
+                    </div>
+                </div>
+                
+                <!-- Estrategia 5 -->
+                <div class="strategy-card">
+                    <div class="strategy-name">5. DOUBLE CONFIRMATION RSI</div>
+                    <div class="strategy-timeframes">TF: 4h, 12h, 1D</div>
+                    <p class="strategy-description">Entradas en sobrecompra/sobreventa extrema con doble confirmación RSI.</p>
+                    <ul class="indicator-list">
+                        <li>RSI Tradicional sale de sobreventa (<30 a >30 para LONG) o sobrecompra (>70 a <70 para SHORT)</li>
+                        <li>RSI Maverick sale de zonas extremas (<0.2 a >0.2 para LONG, >0.8 a <0.8 para SHORT)</li>
+                        <li>Precio cerca bandas Bollinger (inferior para LONG, superior para SHORT)</li>
+                        <li>FTMaverick en dirección del rebote</li>
+                    </ul>
+                    <div class="note">
+                        <strong>Interpretación en Telegram:</strong> Cuando ambos RSI salen de zonas extremas simultáneamente, la probabilidad de rebote es alta. Busca "sale de sobreventa/sobrecompra" en ambos indicadores.
+                    </div>
+                </div>
+                
+                <!-- Estrategia 6 -->
+                <div class="strategy-card">
+                    <div class="strategy-name">6. TREND STRENGTH MAVERICK</div>
+                    <div class="strategy-timeframes">TF: 4h, 12h, 1D, 1W</div>
+                    <p class="strategy-description">Opera solo tendencias fuertes identificadas por el FTMaverick.</p>
+                    <ul class="indicator-list">
+                        <li>FTMaverick: STRONG_UP para LONG, STRONG_DOWN para SHORT</li>
+                        <li>Precio > MA50 para LONG, < para SHORT</li>
+                        <li>Volumen > MA Volumen confirmado</li>
+                        <li>Evita Zonas No-Operar del FTMaverick</li>
+                        <li>Solo señales STRONG (no WEAK)</li>
+                    </ul>
+                    <div class="note">
+                        <strong>Interpretación en Telegram:</strong> "FTMaverick: STRONG_UP/DOWN" indica tendencia muy fuerte con alta volatilidad. Estas señales tienen menor frecuencia pero mayor confiabilidad.
+                    </div>
+                </div>
+                
+                <!-- Estrategia 7 -->
+                <div class="strategy-card">
+                    <div class="strategy-name">7. MA CONVERGENCE DIVERGENCE</div>
+                    <div class="strategy-timeframes">TF: 4h, 12h, 1D</div>
+                    <p class="strategy-description">Opera confluencias y divergencias entre múltiples medias móviles.</p>
+                    <ul class="indicator-list">
+                        <li>Alineación MA9 > MA21 > MA50 para LONG (inversa para SHORT)</li>
+                        <li>Separación >1% entre medias (confirmación fortaleza)</li>
+                        <li>Histograma MACD positivo para LONG, negativo para SHORT</li>
+                        <li>Confirmación FTMaverick en dirección</li>
+                        <li>Evita Zonas No-Operar</li>
+                    </ul>
+                    <div class="note">
+                        <strong>Interpretación en Telegram:</strong> "Alineación MA9 > MA21 > MA50 confirmada" indica tendencia bien estructurada con medias actuando como soportes dinámicos.
+                    </div>
+                </div>
+                
+                <!-- Estrategia 8 -->
+                <div class="strategy-card">
+                    <div class="strategy-name">8. VOLUME-PRICE DIVERGENCE</div>
+                    <div class="strategy-timeframes">TF: 4h, 12h, 1D, 1W</div>
+                    <p class="strategy-description">Detecta divergencias ocultas entre precio y volumen.</p>
+                    <ul class="indicator-list">
+                        <li>Divergencia precio/volumen (precio nuevo extremo, volumen decreciente)</li>
+                        <li>Divergencia RSI Maverick confirmada</li>
+                        <li>FTMaverick en dirección correcta para el rebote esperado</li>
+                        <li>Lookback de 5 velas para detección</li>
+                    </ul>
+                    <div class="note">
+                        <strong>Interpretación en Telegram:</strong> "Divergencia precio/volumen confirmada" indica que el movimiento de precio no tiene respaldo de volumen, sugiriendo debilidad y posible reversión.
+                    </div>
+                </div>
+                
+                <!-- Estrategia 9 -->
+                <div class="strategy-card">
+                    <div class="strategy-name">9. STOCHASTIC RSI COMBO</div>
+                    <div class="strategy-timeframes">TF: 4h, 12h, 1D, 1W</div>
+                    <p class="strategy-description">Estrategia basada en RSI Estocástico con confirmación de soportes/resistencias.</p>
+                    <ul class="indicator-list">
+                        <li>RSI Estocástico en sobreventa (<20) para LONG, sobrecompra (>80) para SHORT</li>
+                        <li>Cruce K/D confirmado (K > D para LONG, K < D para SHORT)</li>
+                        <li>Precio cerca soporte para LONG, resistencia para SHORT (2% tolerancia)</li>
+                        <li>Precio cerca banda Bollinger correspondiente</li>
+                        <li>FTMaverick en dirección del rebote</li>
+                    </ul>
+                    <div class="note">
+                        <strong>Interpretación en Telegram:</strong> "RSI Estocástico sobreventa/sobrecompra" con cruce K/D en niveles clave es una señal clásica de reversión con alta probabilidad.
+                    </div>
+                </div>
+                
+                <!-- Estrategia 10 -->
+                <div class="strategy-card">
+                    <div class="strategy-name">10. WHALE DMI COMBO</div>
+                    <div class="strategy-timeframes">TF: 12h, 1D</div>
+                    <p class="strategy-description">Combina señales de ballenas con directional movement para temporalidades mayores.</p>
+                    <ul class="indicator-list">
+                        <li>Señal ballenas extendida (7 velas) confirmada</li>
+                        <li>Cruce DMI en dirección correspondiente (+DI > -DI para LONG, inversa para SHORT)</li>
+                        <li>ADX > 25 (confirmación fuerza tendencia)</li>
+                        <li>Precio > MA9 y MA21 para LONG, < para SHORT</li>
+                        <li>FTMaverick en dirección correcta</li>
+                    </ul>
+                    <div class="note">
+                        <strong>Interpretación en Telegram:</strong> "Señal ballenas extendida (7 velas) confirmada" con DMI indica que los grandes jugadores están tomando posición con tendencia clara.
+                    </div>
+                </div>
+                
+                <!-- Estrategia 11 -->
+                <div class="strategy-card">
+                    <div class="strategy-name">11. SUPPORT RESISTANCE BOUNCE</div>
+                    <div class="strategy-timeframes">TF: 4h, 12h, 1D</div>
+                    <p class="strategy-description">Opera rebotes en niveles clave de soporte y resistencia.</p>
+                    <ul class="indicator-list">
+                        <li>Rebote en soporte/resistencia confirmado (precio dentro de 1% del nivel)</li>
+                        <li>RSI Estocástico en zona extrema correspondiente</li>
+                        <li>Cruce K/D en dirección del rebote</li>
+                        <li>Clúster de volumen confirmado</li>
+                        <li>Precio cerca banda Bollinger correspondiente</li>
+                        <li>FTMaverick en dirección del rebote</li>
+                    </ul>
+                    <div class="note">
+                        <strong>Interpretación en Telegram:</strong> "Rebote en soporte/resistencia confirmado" con RSI Estocástico extremo es una configuración clásica de trading de rangos.
+                    </div>
+                </div>
+                
+                <!-- Estrategia 12 -->
+                <div class="strategy-card">
+                    <div class="strategy-name">12. MULTI-TIMEFRAME CONFIRMATION</div>
+                    <div class="strategy-timeframes">TF: 4h, 12h, 1D</div>
+                    <p class="strategy-description">Confirmación de señales en múltiples temporalidades simultáneas.</p>
+                    <ul class="indicator-list">
+                        <li>RSI Estocástico en zona extrema en TF actual</li>
+                        <li>Cruce K/D confirmado en TF actual</li>
+                        <li>Confirmación RSI Estocástico en TF menor (2h para 4h, 4h para 12h)</li>
+                        <li>Precio > MA50 en TF mayor (8h para 4h, 1D para 12h, 1W para 1D)</li>
+                        <li>Clúster de volumen confirmado</li>
+                        <li>FTMaverick en dirección correcta</li>
+                    </ul>
+                    <div class="note">
+                        <strong>Interpretación en Telegram:</strong> Esta estrategia requiere confirmación en 3 temporalidades, proporcionando la mayor confiabilidad pero menor frecuencia de señales.
+                    </div>
+                </div>
+            </div>
+            
+            <div class="subsection">
+                <h3 class="subsection-title">3.1 Distribución de Estrategias por Temporalidad</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Temporalidad</th>
+                            <th>Estrategias Disponibles</th>
+                            <th>Frecuencia Revisión</th>
+                            <th>Estilo Trading</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>4 horas</td>
+                            <td>1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 12</td>
+                            <td>Cada 11 minutos</td>
+                            <td>Swing Trading Corto</td>
+                        </tr>
+                        <tr>
+                            <td>12 horas</td>
+                            <td>1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12</td>
+                            <td>Cada 23 minutos</td>
+                            <td>Swing Trading</td>
+                        </tr>
+                        <tr>
+                            <td>1 día</td>
+                            <td>1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12</td>
+                            <td>Cada 23 minutos</td>
+                            <td>Swing Trading / Inversión</td>
+                        </tr>
+                        <tr>
+                            <td>1 semana</td>
+                            <td>1, 6, 8, 9</td>
+                            <td>Cada 32 minutos</td>
+                            <td>Inversión Spot Largo Plazo</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2 class="section-title">4. Interpretación de Alertas de Telegram</h2>
+            
+            <div class="subsection">
+                <h3 class="subsection-title">4.1 Estructura de una Alerta</h3>
+                <p>Todas las alertas siguen esta estructura:</p>
+                
+                <div class="step-by-step">
+                    <div class="step">
+                        <strong>🚨 Encabezado con Emoji</strong>
+                        <p>Indica el inicio de una nueva alerta. Ejemplo: "🚨 Alerta LONG BTC-USDT en 4h 🚨"</p>
+                    </div>
+                    
+                    <div class="step">
+                        <strong>Estrategia y Parámetros</strong>
+                        <p>Muestra la estrategia que generó la señal y los parámetros clave. Ejemplo: "Estrategia: MOMENTUM DIVERGENCE"</p>
+                    </div>
+                    
+                    <div class="step">
+                        <strong>Precios y Niveles</strong>
+                        <p>Muestra precio actual, entrada sugerida, stop loss y primer take profit.</p>
+                    </div>
+                    
+                    <div class="step">
+                        <strong>Filtros Aplicados</strong>
+                        <p>Lista los filtros específicos que pasó la señal. Esta es la parte más importante para entender por qué se generó la alerta.</p>
+                    </div>
+                    
+                    <div class="step">
+                        <strong>Recomendación</strong>
+                        <p>Sugerencia de estilo de trading basada en la temporalidad.</p>
+                    </div>
+                </div>
+                
+                <div class="note">
+                    <strong>Ejemplo Completo de Alerta:</strong><br>
+                    🚨 Alerta LONG BTC-USDT en 4h 🚨<br>
+                    Estrategia: MOMENTUM DIVERGENCE<br>
+                    Precio actual: $45,200.00 | Entrada: $44,800.00<br>
+                    Stop Loss: $43,500.00 | Take Profit: $46,500.00<br>
+                    Filtros:<br>
+                    • Divergencia RSI Tradicional confirmada<br>
+                    • Divergencia RSI Maverick confirmada<br>
+                    • Clúster de volumen confirmado (3 anomalías)<br>
+                    • FTMaverick: WEAK_UP<br>
+                    • Precio > MA9 y MA21<br>
+                    Recomendación: Swing Trading.
+                </div>
+            </div>
+            
+            <div class="subsection">
+                <h3 class="subsection-title">4.2 Cómo Interpretar los Filtros</h3>
+                <p>Cada filtro en la alerta corresponde a una condición específica que se cumplió:</p>
+                
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Filtro Común</th>
+                            <th>Qué Significa</th>
+                            <th>Importancia</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>"Divergencia RSI Tradicional confirmada"</td>
+                            <td>El RSI tradicional (14 periodos) muestra divergencia con el precio durante 14 velas, señal extendida 7 velas</td>
+                            <td>Alta - Indica posible reversión</td>
+                        </tr>
+                        <tr>
+                            <td>"Divergencia RSI Maverick confirmada"</td>
+                            <td>El RSI basado en Bollinger Bands muestra divergencia, más sensible, señal 4 velas</td>
+                            <td>Alta - Confirmación adicional</td>
+                        </tr>
+                        <tr>
+                            <td>"Clúster de volumen confirmado"</td>
+                            <td>2+ anomalías de volumen en 5 velas, indica interés sostenido</td>
+                            <td>Media-Alta - Confirma participación</td>
+                        </tr>
+                        <tr>
+                            <td>"FTMaverick: STRONG_UP/WEAK_UP"</td>
+                            <td>Fuerza de tendencia alcista fuerte/débil basada en Bandas Bollinger</td>
+                            <td>Alta - Define contexto de mercado</td>
+                        </tr>
+                        <tr>
+                            <td>"ADX > 30 y creciente"</td>
+                            <td>Tendencia fuerte y fortaleciéndose</td>
+                            <td>Alta para estrategias de tendencia</td>
+                        </tr>
+                        <tr>
+                            <td>"Cruce K/D confirmado"</td>
+                            <td>Línea %K cruza %D en RSI Estocástico</td>
+                            <td>Media - Señal de timing</td>
+                        </tr>
+                        <tr>
+                            <td>"Señal ballenas extendida (7 velas)"</td>
+                            <td>Actividad institucional detectada y extendida por 7 periodos</td>
+                            <td>Alta - Indica "smart money"</td>
+                        </tr>
+                        <tr>
+                            <td>"Rebote en soporte/resistencia confirmado"</td>
+                            <td>Precio dentro del 1-2% de nivel clave</td>
+                            <td>Media-Alta - Define nivel de entrada</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="subsection">
+                <h3 class="subsection-title">4.3 Recomendaciones por Temporalidad</h3>
+                
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Temporalidad Alerta</th>
+                            <th>Recomendación</th>
+                            <th>Apalancamiento Sugerido</th>
+                            <th>Horizonte Temporal</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>4 horas</td>
+                            <td>Swing Trading</td>
+                            <td>5x - 10x</td>
+                            <td>1-3 días</td>
+                        </tr>
+                        <tr>
+                            <td>12 horas</td>
+                            <td>Swing Trading / Inversión</td>
+                            <td>3x - 5x</td>
+                            <td>3-7 días</td>
+                        </tr>
+                        <tr>
+                            <td>1 día</td>
+                            <td>Swing Trading / Inversión</td>
+                            <td>2x - 3x</td>
+                            <td>1-2 semanas</td>
+                        </tr>
+                        <tr>
+                            <td>1 semana</td>
+                            <td>Inversión Spot Largo Plazo</td>
+                            <td>1x (spot) o 2x máx</td>
+                            <td>2-4 semanas</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2 class="section-title">5. Sistema de Gestión de Riesgo</h2>
+            
+            <div class="subsection">
+                <h3 class="subsection-title">5.1 Cálculo Automático de Niveles</h3>
+                <p>El sistema calcula automáticamente todos los niveles de trading:</p>
+                
+                <div class="step-by-step">
+                    <div class="step">
+                        <strong>Entrada</strong>
+                        <p>Para LONG: en el soporte más cercano por debajo del precio actual. Para SHORT: en la resistencia más cercana por encima del precio actual. Si no hay niveles cercanos, usa corrección del 0.5%.</p>
+                    </div>
+                    
+                    <div class="step">
+                        <strong>Stop Loss</strong>
+                        <p>Para LONG: debajo del siguiente soporte o usando 2×ATR. Para SHORT: encima de la siguiente resistencia o usando 2×ATR. Basado en Average True Range para adaptarse a la volatilidad.</p>
+                    </div>
+                    
+                    <div class="step">
+                        <strong>Take Profits</strong>
+                        <p>3 niveles basados en resistencias para LONG, soportes para SHORT. Si no hay niveles claros, calcula proporcionalmente: TP1 = entrada + 2×(entrada - stop loss).</p>
+                    </div>
+                    
+                    <div class="step">
+                        <strong>Soportes y Resistencias</strong>
+                        <p>6 niveles dinámicos usando pivot points, Fibonacci y máximos/mínimos recientes de 50 periodos.</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="subsection">
+                <h3 class="subsection-title">5.2 ATR (Average True Range)</h3>
+                <p>Indicador clave para gestión de riesgo:</p>
+                
+                <ul class="indicator-list">
+                    <li><strong>Qué es:</strong> Mide la volatilidad promedio del mercado en los últimos 14 periodos</li>
+                    <li><strong>Cómo se calcula:</strong> True Range = máximo de: (alto-bajo), |alto-cierre anterior|, |bajo-cierre anterior|. ATR = media de 14 periodos del True Range</li>
+                    <li><strong>Uso en el sistema:</strong> Stop Loss = 2×ATR. ATR% = ATR/precio actual (ej: 1.5% significa volatilidad diaria típica del 1.5%)</li>
+                    <li><strong>Interpretación:</strong> ATR alto = alta volatilidad = stops más amplios. ATR bajo = baja volatilidad = stops más ajustados</li>
+                </ul>
+                
+                <p>En las alertas de Telegram, el ATR y ATR% te ayudan a dimensionar el tamaño de posición:</p>
+                <div class="note">
+                    <strong>Fórmula tamaño posición:</strong> Tamaño = (Capital × %Riesgo) / (Distancia SL × Apalancamiento)<br>
+                    <strong>Ejemplo:</strong> Capital $10,000, Riesgo 2%, Distancia SL $100 (1×ATR), Apalancamiento 5x<br>
+                    Tamaño = ($10,000 × 0.02) / ($100 × 5) = $200 / $500 = 0.4 contratos
+                </div>
+            </div>
+            
+            <div class="subsection">
+                <h3 class="subsection-title">5.3 Zonas No-Operar del FTMaverick</h3>
+                <p>El sistema protege automáticamente evitando operar en condiciones de riesgo elevado:</p>
+                
+                <ul class="indicator-list">
+                    <li><strong>Condición 1:</strong> Ancho Bandas Bollinger > percentil 70 histórico (volatilidad excesiva)</li>
+                    <li><strong>Condición 2:</strong> Fuerza de tendencia decreciente (momentum perdiendo fuerza)</li>
+                    <li><strong>Condición 3:</strong> Ancho actual < máximo reciente de 10 periodos (contracción después de expansión)</li>
+                </ul>
+                
+                <p>Cuando estas condiciones se cumplen simultáneamente, el sistema no genera señales aunque otros indicadores sean favorables. Esto protege durante picos de volatilidad y transiciones de tendencia.</p>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2 class="section-title">6. Proceso Operativo del Sistema</h2>
+            
+            <div class="subsection">
+                <h3 class="subsection-title">6.1 Frecuencias de Revisión</h3>
+                <p>El sistema revisa cada temporalidad con diferentes frecuencias optimizadas:</p>
+                
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Temporalidad</th>
+                            <th>Frecuencia Revisión</th>
+                            <th>Momento de Revisión</th>
+                            <th>Justificación</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>4 horas</td>
+                            <td>Cada 11 minutos</td>
+                            <td>Últimos 11 min de vela (85% formada)</td>
+                            <td>Captura señales antes del cierre de vela 4h</td>
+                        </tr>
+                        <tr>
+                            <td>12 horas</td>
+                            <td>Cada 23 minutos</td>
+                            <td>Últimos 43 min de vela (90% formada)</td>
+                            <td>Mayor tiempo para señales en TF mayor</td>
+                        </tr>
+                        <tr>
+                            <td>1 día</td>
+                            <td>Cada 23 minutos</td>
+                            <td>Últimos 82 min de vela (95% formada)</td>
+                            <td>Señales diarias con alta confirmación</td>
+                        </tr>
+                        <tr>
+                            <td>1 semana</td>
+                            <td>Cada 32 minutos</td>
+                            <td>Últimos 10 horas de vela (99% formada)</td>
+                            <td>Señales semanales con máxima confirmación</td>
+                        </tr>
+                    </tbody>
+                </table>
+                
+                <div class="note">
+                    <strong>Por qué revisar al final de la vela:</strong> Las señales tienen mayor confiabilidad cuando la vela está casi completamente formada. Esto reduce falsas señales por ruido intradía.
+                </div>
+            </div>
+            
+            <div class="subsection">
+                <h3 class="subsection-title">6.2 Proceso de Generación de Señales</h3>
+                
+                <div class="step-by-step">
+                    <div class="step">
+                        <strong>Paso 1: Revisión de Temporalidad</strong>
+                        <p>El sistema verifica si es momento de revisar cada TF basado en el porcentaje de formación de vela y la frecuencia configurada.</p>
+                    </div>
+                    
+                    <div class="step">
+                        <strong>Paso 2: Cálculo de Indicadores</strong>
+                        <p>Para cada símbolo en el TF actual, calcula todos los indicadores: FTMaverick, RSI Tradicional, RSI Maverick, RSI Estocástico, ADX/DMI, Ballenas, Volumen, etc.</p>
+                    </div>
+                    
+                    <div class="step">
+                        <strong>Paso 3: Ejecución de Estrategias</strong>
+                        <p>Ejecuta las 12 estrategias disponibles para ese TF. Cada estrategia verifica sus condiciones específicas con los indicadores calculados.</p>
+                    </div>
+                    
+                    <div class="step">
+                        <strong>Paso 4: Filtrado de Señales</strong>
+                        <p>Elimina señales en Zonas No-Operar, verifica que no sean duplicados recientes (mismo símbolo/TF/estrategia en las últimas 2 horas).</p>
+                    </div>
+                    
+                    <div class="step">
+                        <strong>Paso 5: Cálculo de Niveles</strong>
+                        <p>Para cada señal válida, calcula entrada, stop loss, take profits, soportes y resistencias usando el sistema dinámico.</p>
+                    </div>
+                    
+                    <div class="step">
+                        <strong>Paso 6: Generación de Alerta</strong>
+                        <p>Prepara el mensaje de Telegram con todos los datos, genera gráfico de análisis y envía la alerta completa.</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="subsection">
+                <h3 class="subsection-title">6.3 Manejo de Datos y Cache</h3>
+                <p>El sistema optimiza el uso de datos para eficiencia:</p>
+                
+                <ul class="indicator-list">
+                    <li><strong>Cache de datos:</strong> Los datos de cada símbolo/TF se cachean por 60 segundos para reducir llamadas a API</li>
+                    <li><strong>Límite de velas:</strong> Siempre usa 100 velas para cálculo de indicadores (balance entre precisión y velocidad)</li>
+                    <li><strong>Manejo de errores:</strong> Si falla la API, genera datos de muestra realistas para continuar operando</li>
+                    <li><strong>Timeout:</strong> Límite de 15 segundos por solicitud para evitar bloqueos</li>
+                </ul>
+                
+                <p>Esta optimización permite que el sistema revise 6 símbolos × 4 temporalidades × 12 estrategias de manera eficiente.</p>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2 class="section-title">7. Explicación Técnica de Estrategias Clave</h2>
+            
+            <div class="subsection">
+                <h3 class="subsection-title">7.1 Momentum Divergence - Explicación Profunda</h3>
+                
+                <p><strong>Fundamento teórico:</strong> Las divergencias entre precio e indicadores de momentum (como RSI) indican debilidad en la tendencia actual. Cuando el precio hace nuevo mínimo pero el RSI hace mínimo más alto, los vendedores están perdiendo fuerza aunque el precio siga bajando, presagiando una reversión alcista.</p>
+                
+                <p><strong>Implementación técnica:</strong></p>
+                <ul class="indicator-list">
+                    <li><strong>Detección divergencia:</strong> Compara mínimos/máximos de precio e indicador en ventana de 14 velas</li>
+                    <li><strong>Extensión de señal:</strong> Divergencia tradicional = 7 velas, Maverick = 4 velas (más sensible)</li>
+                    <li><strong>Confirmación volumen:</strong> Requiere clúster (2+ anomalías en 5 velas) para validar participación</li>
+                    <li><strong>Filtro tendencia:</strong> FTMaverick debe estar en dirección del rebote esperado</li>
+                    <li><strong>Filtro medias:</strong> Precio debe estar por encima/debajo de MA9 y MA21 según dirección</li>
+                </ul>
+                
+                <p><strong>Por qué funciona en temporalidades mayores:</strong> Las divergencias en TF mayores (4h+) tienen mayor confiabilidad estadística porque filtran ruido intradía y representan cambios más fundamentales en el sentimiento del mercado.</p>
+            </div>
+            
+            <div class="subsection">
+                <h3 class="subsection-title">7.2 Whale DMI Combo - Explicación Profunda</h3>
+                
+                <p><strong>Fundamento teórico:</strong> Los grandes jugadores institucionales (ballenas) suelen acumular/descargar posiciones durante varios periodos, no en una sola operación. Su actividad crea momentum sostenido que se alinea con la dirección de la tendencia medida por DMI.</p>
+                
+                <p><strong>Implementación técnica:</strong></p>
+                <ul class="indicator-list">
+                    <li><strong>Detección ballenas:</strong> Anomalía volumen (>1.5x promedio) + precio en extremo local + cerca nivel S/R</li>
+                    <li><strong>Extensión 7 velas:</strong> Captura actividad institucional prolongada, no spikes aislados</li>
+                    <li><strong>Confirmación DMI:</strong> ADX > 25 (tendencia fuerte) + cruce +DI/-DI en dirección</li>
+                    <li><strong>Filtro medias:</strong> Precio debe respetar estructura de tendencia (sobre/debajo MA9 y MA21)</li>
+                    <li><strong>Exclusividad temporal:</strong> Solo 12h y 1D donde la actividad institucional es más discernible</li>
+                </ul>
+                
+                <p><strong>Interpretación en trading:</strong> Cuando ves esta señal, significa que los grandes jugadores están tomando posición en la dirección de una tendencia establecida, proporcionando alta confianza en la continuación del movimiento.</p>
+            </div>
+            
+            <div class="subsection">
+                <h3 class="subsection-title">7.3 Multi-Timeframe Confirmation - Explicación Profunda</h3>
+                
+                <p><strong>Fundamento teórico:</strong> La convergencia de señales en múltiples temporalidades aumenta exponencialmente la probabilidad de éxito. Una señal en 4h confirmada por 2h y alineada con 8h tiene mucho más peso que una señal aislada.</p>
+                
+                <p><strong>Implementación técnica:</strong></p>
+                <ul class="indicator-list">
+                    <li><strong>TF Actual:</strong> RSI Estocástico extremo + cruce K/D (señal primaria)</li>
+                    <li><strong>TF Menor:</strong> Confirmación RSI Estocástico (validación timing)</li>
+                    <li><strong>TF Mayor:</strong> Precio >/< MA50 (confirmación tendencia estructural)</li>
+                    <li><strong>Validación volumen:</strong> Clúster para confirmar participación</li>
+                    <li><strong>Filtro FTMaverick:</strong> Dirección correcta y evitar Zonas No-Operar</li>
+                </ul>
+                
+                <p><strong>Jerarquía temporal:</strong></p>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>TF Principal</th>
+                            <th>TF Menor (Confirmación)</th>
+                            <th>TF Mayor (Tendencia)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>4 horas</td>
+                            <td>2 horas</td>
+                            <td>8 horas</td>
+                        </tr>
+                        <tr>
+                            <td>12 horas</td>
+                            <td>4 horas</td>
+                            <td>1 día</td>
+                        </tr>
+                        <tr>
+                            <td>1 día</td>
+                            <td>12 horas</td>
+                            <td>1 semana</td>
+                        </tr>
+                    </tbody>
+                </table>
+                
+                <p>Esta estrategia genera menos señales pero con la mayor confiabilidad del sistema.</p>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2 class="section-title">8. Configuración y Optimización del Sistema</h2>
+            
+            <div class="subsection">
+                <h3 class="subsection-title">8.1 Parámetros Clave del Sistema</h3>
+                
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Parámetro</th>
+                            <th>Valor Actual</th>
+                            <th>Función</th>
+                            <th>Recomendación Ajuste</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Período RSI Tradicional</td>
+                            <td>14</td>
+                            <td>Suavizado del RSI estándar</td>
+                            <td>No modificar (estándar industria)</td>
+                        </tr>
+                        <tr>
+                            <td>Período RSI Estocástico</td>
+                            <td>14, 3, 3</td>
+                            <td>RSI:14, %K:3, %D:3</td>
+                            <td>Puede ajustar a 10 para mayor sensibilidad</td>
+                        </tr>
+                        <tr>
+                            <td>Período FTMaverick</td>
+                            <td>20</td>
+                            <td>Ventana cálculo Bandas Bollinger</td>
+                            <td>No modificar (optimizado)</td>
+                        </tr>
+                        <tr>
+                            <td>Umbral ADX</td>
+                            <td>25</td>
+                            <td>Límite tendencia fuerte vs lateral</td>
+                            <td>25-30, mayor = señales más conservadoras</td>
+                        </tr>
+                        <tr>
+                            <td>Umbral Ballenas</td>
+                            <td>25</td>
+                            <td>Intensidad mínima señal ballenas</td>
+                            <td>20-30, menor = más señales pero más ruido</td>
+                        </tr>
+                        <tr>
+                            <td>Multiplicador ATR Stop</td>
+                            <td>2.0</td>
+                            <td>Distancia stop loss basada en ATR</td>
+                            <td>1.5-2.5, menor = stops más ajustados</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="subsection">
+                <h3 class="subsection-title">8.2 Optimización para Diferentes Condiciones de Mercado</h3>
+                
+                <div class="step-by-step">
+                    <div class="step">
+                        <strong>Mercado Alcista Fuerte</strong>
+                        <p>Priorizar: Trend Strength Maverick, ADX Power Trend, MA Convergence.<br>
+                        Ajustar: Reducir umbral ADX a 20, aumentar stops a 2.5×ATR.<br>
+                        Evitar: Estrategias de reversión en temporalidades pequeñas.</p>
+                    </div>
+                    
+                    <div class="step">
+                        <strong>Mercado Lateral/Rango</strong>
+                        <p>Priorizar: Support Resistance Bounce, Stochastic RSI Combo, Double Confirmation RSI.<br>
+                        Ajustar: Aumentar umbral ADX a 30 (filtrar falsas tendencias), stops a 1.5×ATR.<br>
+                        Usar: Temporalidades 4h y 12h para mejores entradas en soportes/resistencias.</p>
+                    </div>
+                    
+                    <div class="step">
+                        <strong>Alta Volatilidad (Noticias/Eventos)</strong>
+                        <p>Priorizar: Volume Spike Momentum, Whale DMI Combo.<br>
+                        Ajustar: Aumentar umbral ballenas a 30, stops a 3×ATR.<br>
+                        Reducir: Apalancamiento a la mitad, tamaño de posición reducido.<br>
+                        Confiar: En Zonas No-Operar del FTMaverick para protección.</p>
+                    </div>
+                    
+                    <div class="step">
+                        <strong>Mercado Bajista Establecido</strong>
+                        <p>Priorizar: Momentum Divergence (para shorts), Volume-Price Divergence.<br>
+                        Ajustar: Invertir condiciones de medias (precio < MA para shorts).<br>
+                        Cuidado: Los rebotes en mercados bajistas suelen ser violentos, usar stops ajustados.</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="subsection">
+                <h3 class="subsection-title">8.3 Monitoreo y Ajuste Continuo</h3>
+                
+                <p>El sistema está diseñado para auto-optimizarse, pero el operador debe monitorear:</p>
+                
+                <ul class="indicator-list">
+                    <li><strong>Tasa de acierto por estrategia:</strong> Revisar qué estrategias funcionan mejor en condiciones actuales</li>
+                    <li><strong>Frecuencia de señales:</strong> Demasiadas señales = posible sobreoptimización, muy pocas = parámetros muy estrictos</li>
+                    <li><strong>Rendimiento por temporalidad:</strong> Identificar qué TFs tienen mejor performance en el mercado actual</li>
+                    <li><strong>Drawdown máximo:</strong> Si el sistema tiene drawdown > 15%, revisar parámetros de riesgo</li>
+                    <li><strong>Ratio señales LONG/SHORT:</strong> En mercados claramente direccionales, el ratio debe inclinarse hacia la dirección dominante</li>
+                </ul>
+                
+                <div class="note">
+                    <strong>Regla de oro:</strong> No optimizar en exceso. Los parámetros actuales están optimizados para robustez en diversas condiciones de mercado. Pequeños ajustes basados en monitoreo continuo, no en resultados cortoplacistas.
+                </div>
+            </div>
+        </div>
+
+        <a href="/" class="return-button" style="display: block; text-align: center; margin: 40px auto;">← Volver al Sistema de Trading</a>
+
+        <footer>
+            <p>Sistema MULTI-TIMEFRAME WGTA PRO - Manual de Operaciones</p>
+            <p>© 2025 Sistema de Trading Avanzado. Para uso exclusivo del operador autorizado.</p>
+            <p>Versión del Sistema: 3.0 | Última actualización: Enero 2025</p>
+        </footer>
+    </div>
+</body>
+</html>
