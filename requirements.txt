@@ -1,0 +1,44 @@
+# Flask Framework
+Flask
+gunicorn
+
+# Data Analysis & Calculations
+pandas
+numpy
+scipy
+
+# API Requests & Web
+requests
+websocket-client
+python-dotenv
+
+# Technical Analysis (Cálculos Manuales - Evitar TA-Lib)
+# ta-lib==0.4.24  # Removido para evitar problemas de instalación
+
+# Charting & Visualization
+matplotlib
+plotly
+
+# Telegram Integration
+python-telegram-bot
+telegram
+
+# Async Support
+asyncio
+aiohttp
+
+# Date/Time Handling
+python-dateutil
+pytz
+
+# Development & Testing
+pytest
+black
+flake8
+jupyter
+
+# Security
+cryptography
+
+# Performance
+numba
