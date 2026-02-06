@@ -1,0 +1,124 @@
+# Render Blueprint para Whale Hunter WGTA
+# Configuración de despliegue profesional para sistema de trading
+# Autor: Willer Gianni Torrico Arispe
+# Año: 2025
+
+services:
+  # Servicio Web Principal - Whale Hunter WGTA
+  - type: web
+    name: whale-hunter-wgta
+    runtime: python
+    region: ohio
+    plan: standard
+    branch: main
+    
+    # Configuración de construcción
+    buildCommand: |
+      pip install --upgrade pip
+      pip install -r requirements.txt
+      python -c "import nltk; nltk.download('punkt')"
+    
+    # Comando de inicio
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --workers 2 --threads 4 --timeout 120
+    
+    # Comando pre-despliegue (migraciones, inicialización)
+    preDeployCommand: |
+      echo "Ejecutando preparación pre-despliegue..."
+      python -c "
+      import sys
+      sys.path.append('.')
+      from app import indicator
+      print('Sistema Whale Hunter WGTA inicializado correctamente')
+      "
+    
+    # Variables de entorno
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: ENVIRONMENT
+        value: production
+      - key: FLASK_ENV
+        value: production
+      - key: KUCONNEX_API_KEY
+        value: free_tier
+      - key: TELEGRAM_BOT_TOKEN
+        fromGroup: telegram-credentials
+      - key: TELEGRAM_CHAT_ID
+        fromGroup: telegram-credentials
+    
+    # Salud del servicio
+    healthCheckPath: /
+    initialDelaySeconds: 30
+    maxShutdownDelaySeconds: 60
+    
+    # Escalado
+    numInstances: 1
+    scaling:
+      minInstances: 1
+      maxInstances: 2
+      targetMemoryPercent: 80
+      targetCPUPercent: 70
+    
+    # Auto-despliegue
+    autoDeployTrigger: commit
+    
+    # Entornos de vista previa
+    previews:
+      generation: automatic
+      numInstances: 1
+      plan: starter
+      expireAfterDays: 3
+
+  # Worker de Alertas en Tiempo Real
+  - type: worker
+    name: whale-hunter-alerts
+    runtime: python
+    region: ohio
+    plan: starter
+    branch: main
+    
+    buildCommand: pip install -r requirements.txt
+    
+    startCommand: python alert_worker.py
+    
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: TELEGRAM_BOT_TOKEN
+        fromGroup: telegram-credentials
+      - key: TELEGRAM_CHAT_ID
+        fromGroup: telegram-credentials
+    
+    autoDeployTrigger: commit
+
+  # Worker de Análisis de Mercado
+  - type: worker
+    name: whale-hunter-analysis
+    runtime: python
+    region: ohio
+    plan: starter
+    branch: main
+    
+    buildCommand: pip install -r requirements.txt
+    
+    startCommand: python analysis_worker.py
+    
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+    
+    autoDeployTrigger: commit
+
+# Grupos de Variables de Entorno
+envVarGroups:
+  - name: telegram-credentials
+    envVars:
+      - key: TELEGRAM_BOT_TOKEN
+        value: 8384364857:AAHManLvI7sSXcJiBlRsfah98jgy95AJNlU
+      - key: TELEGRAM_CHAT_ID
+        value: -1003169190788
+
+# Configuración de Entornos de Vista Previa
+previews:
+  generation: automatic
+  expireAfterDays: 3
