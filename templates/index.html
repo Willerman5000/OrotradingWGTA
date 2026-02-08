@@ -29,7 +29,7 @@
             <div class="col-12">
                 <div id="system-info" class="text-center">
                     <small class="text-muted">
-                        🚀 <strong>PAXG/BTC SPOT TRADING</strong> | 15 Estrategias Multi-Temporalidad | Trading 24/7
+                        🚀 <strong>PAXG/BTC SPOT TRADING</strong> | 20 Estrategias Multi-Temporalidad | Trading 24/7
                     </small>
                 </div>
             </div>
@@ -121,7 +121,7 @@
                         <div class="mt-3">
                             <div class="alert alert-info small py-2">
                                 <i class="fas fa-info-circle me-1"></i>
-                                <strong>SPOT Trading:</strong> Sin apalancamiento, sólo PAXG/BTC
+                                <strong>SPOT Trading:</strong> 20 estrategias, sin apalancamiento
                             </div>
                         </div>
                     </div>
@@ -138,16 +138,17 @@
                                 <i class="fas fa-gem fa-2x text-warning"></i>
                             </div>
                             <h6>PAXG/BTC SPOT PRO</h6>
-                            <p class="small text-muted">15 Estrategias Multi-Temporalidad</p>
+                            <p class="small text-muted">20 Estrategias Multi-Temporalidad</p>
                             <p class="small text-muted">© 2025 SPOT Trading System</p>
                         </div>
                         <div class="mt-3">
                             <p class="small">
-                                <strong>Estrategias activas:</strong><br>
-                                • Ichimoku Cloud Breakout<br>
-                                • Fibonacci Supertrend<br>
-                                • CryptoDivisa (3 MAs)<br>
-                                • 12 estrategias más
+                                <strong>Nuevas estrategias:</strong><br>
+                                • RSI Maverick DMI Div<br>
+                                • RSI Maverick Stochastic<br>
+                                • RSI Maverick MACD Div<br>
+                                • Whale RSI Maverick Combo<br>
+                                • RSI Maverick Trend Reversal
                             </p>
                         </div>
                     </div>
@@ -173,6 +174,30 @@
 
                 <!-- Contenedor para indicadores plegables -->
                 <div id="indicators-container">
+                    <!-- RSI Maverick con Divergencias -->
+                    <div class="card bg-dark border-warning mb-4 indicator-card" data-indicator="rsi_maverick">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">
+                                <i class="fas fa-chart-line me-2 text-info"></i>
+                                RSI Maverick con Divergencias (7 velas)
+                            </h5>
+                            <div class="btn-group btn-group-sm">
+                                <button class="btn btn-outline-secondary btn-move" data-direction="up">
+                                    <i class="fas fa-arrow-up"></i>
+                                </button>
+                                <button class="btn btn-outline-secondary btn-move" data-direction="down">
+                                    <i class="fas fa-arrow-down"></i>
+                                </button>
+                                <button class="btn btn-outline-secondary btn-collapse" data-collapsed="false">
+                                    <i class="fas fa-minus"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="card-body indicator-content">
+                            <div id="rsi-maverick-chart" style="height: 300px;"></div>
+                        </div>
+                    </div>
+
                     <!-- Fuerza de Tendencia Maverick -->
                     <div class="card bg-dark border-warning mb-4 indicator-card" data-indicator="trend_strength">
                         <div class="card-header d-flex justify-content-between align-items-center">
