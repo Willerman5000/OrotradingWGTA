@@ -203,7 +203,7 @@ function updateMainChart(symbol, interval, leverage) {
             renderWhaleChart(data);
             renderMacdChart(data);
             renderRsiTraditionalChart(data);
-            renderRsiMaverickChart(data); // NUEVO: Gráfico RSI Maverick
+            renderRsiMaverickChart(data);
             
             // Actualizar resúmenes
             updateMarketSummary(data);
@@ -401,7 +401,6 @@ function selectInterval(interval) {
     bootstrap.Modal.getInstance(document.getElementById('signalModal')).hide();
 }
 
-// Función para renderizar gráfico de velas
 function renderCandleChart(data) {
     const chartElement = document.getElementById('candle-chart');
     
@@ -422,7 +421,6 @@ function renderCandleChart(data) {
     const lows = data.data.map(d => parseFloat(d.low));
     const closes = data.data.map(d => parseFloat(d.close));
     
-    // Traza de velas japonesas
     const candlestickTrace = {
         type: 'candlestick',
         x: dates,
@@ -437,7 +435,6 @@ function renderCandleChart(data) {
     
     const traces = [candlestickTrace];
     
-    // Añadir indicadores si están activados
     const showMA9 = document.getElementById('show-ma9').checked;
     const showMA21 = document.getElementById('show-ma21').checked;
     const showMA50 = document.getElementById('show-ma50').checked;
@@ -520,7 +517,6 @@ function renderCandleChart(data) {
         });
     }
     
-    // Añadir niveles de trading si existen
     if (data.entry && data.stop_loss) {
         traces.push({
             type: 'scatter',
@@ -597,7 +593,6 @@ function renderCandleChart(data) {
         modeBarButtonsToRemove: ['pan2d', 'lasso2d']
     };
     
-    // Destruir gráfico existente
     if (currentChart) {
         Plotly.purge('candle-chart');
     }
@@ -688,6 +683,15 @@ function renderStochRsiChart(data) {
     const kLine = data.indicators.stoch_k || [];
     const dLine = data.indicators.stoch_d || [];
     
+    // Detectar cruces K/D
+    const crosses = detectCrosses(kLine.slice(-50), dLine.slice(-50));
+    const bullishCrosses = crosses.filter(c => c.type === 'bullish');
+    const bearishCrosses = crosses.filter(c => c.type === 'bearish');
+    
+    // Detectar divergencias usando precio
+    const closes = data.data.slice(-50).map(d => parseFloat(d.close));
+    const stochRsiDivergences = detectDivergences(closes, stochRsi.slice(-50));
+    
     const traces = [
         {
             x: dates,
@@ -715,9 +719,82 @@ function renderStochRsiChart(data) {
         }
     ];
     
+    // Añadir marcadores de cruces
+    if (bullishCrosses.length > 0) {
+        traces.push({
+            x: bullishCrosses.map(c => dates[c.index]),
+            y: bullishCrosses.map(c => c.value),
+            type: 'scatter',
+            mode: 'markers',
+            name: 'Cruce Alcista',
+            marker: {
+                color: '#00C853',
+                size: 12,
+                symbol: 'triangle-up',
+                line: {color: 'white', width: 1}
+            }
+        });
+    }
+    
+    if (bearishCrosses.length > 0) {
+        traces.push({
+            x: bearishCrosses.map(c => dates[c.index]),
+            y: bearishCrosses.map(c => c.value),
+            type: 'scatter',
+            mode: 'markers',
+            name: 'Cruce Bajista',
+            marker: {
+                color: '#FF1744',
+                size: 12,
+                symbol: 'triangle-down',
+                line: {color: 'white', width: 1}
+            }
+        });
+    }
+    
+    // Añadir marcadores de divergencias
+    const divergences = stochRsiDivergences.map(d => ({
+        x: dates[d.index],
+        y: d.value,
+        type: d.divergenceType === 'bullish' ? 'triangle-up' : 'triangle-down',
+        color: d.divergenceType === 'bullish' ? '#00FF00' : '#FF0000'
+    }));
+    
+    if (divergences.filter(d => d.type === 'triangle-up').length > 0) {
+        traces.push({
+            x: divergences.filter(d => d.type === 'triangle-up').map(d => d.x),
+            y: divergences.filter(d => d.type === 'triangle-up').map(d => d.y),
+            type: 'scatter',
+            mode: 'markers',
+            name: 'Divergencia Alcista',
+            marker: {
+                color: '#00FF00',
+                size: 15,
+                symbol: 'star',
+                line: {color: 'white', width: 2}
+            }
+        });
+    }
+    
+    if (divergences.filter(d => d.type === 'triangle-down').length > 0) {
+        traces.push({
+            x: divergences.filter(d => d.type === 'triangle-down').map(d => d.x),
+            y: divergences.filter(d => d.type === 'triangle-down').map(d => d.y),
+            type: 'scatter',
+            mode: 'markers',
+            name: 'Divergencia Bajista',
+            marker: {
+                color: '#FF0000',
+                size: 15,
+                symbol: 'star',
+                line: {color: 'white', width: 2}
+            }
+        });
+    }
+    
     const layout = {
         title: {
-            text: 'RSI Estocástico (%K y %D)',
+            text: 'RSI Estocástico (%K y %D) - Cruces y Divergencias',
             font: {color: '#ffffff', size: 14}
         },
         xaxis: {
@@ -802,6 +879,11 @@ function renderAdxChart(data) {
     const plusDi = data.indicators.plus_di || [];
     const minusDi = data.indicators.minus_di || [];
     
+    // Detectar cruces +DI/-DI
+    const crosses = detectCrosses(plusDi.slice(-50), minusDi.slice(-50));
+    const bullishCrosses = crosses.filter(c => c.type === 'bullish');
+    const bearishCrosses = crosses.filter(c => c.type === 'bearish');
+    
     const traces = [
         {
             x: dates,
@@ -829,9 +911,42 @@ function renderAdxChart(data) {
         }
     ];
     
+    // Añadir marcadores de cruces +DI/-DI
+    if (bullishCrosses.length > 0) {
+        traces.push({
+            x: bullishCrosses.map(c => dates[c.index]),
+            y: bullishCrosses.map(c => c.value),
+            type: 'scatter',
+            mode: 'markers',
+            name: '+DI > -DI',
+            marker: {
+                color: '#00C853',
+                size: 12,
+                symbol: 'triangle-up',
+                line: {color: 'white', width: 1}
+            }
+        });
+    }
+    
+    if (bearishCrosses.length > 0) {
+        traces.push({
+            x: bearishCrosses.map(c => dates[c.index]),
+            y: bearishCrosses.map(c => c.value),
+            type: 'scatter',
+            mode: 'markers',
+            name: '-DI > +DI',
+            marker: {
+                color: '#FF1744',
+                size: 12,
+                symbol: 'triangle-down',
+                line: {color: 'white', width: 1}
+            }
+        });
+    }
+    
     const layout = {
         title: {
-            text: 'ADX con Indicadores Direccionales (+DI / -DI)',
+            text: 'ADX con DMI (+DI / -DI) - Cruces Detectados',
             font: {color: '#ffffff', size: 14}
         },
         xaxis: {
@@ -887,6 +1002,8 @@ function renderVolumeChart(data) {
     const dates = data.data.slice(-50).map(d => new Date(d.timestamp));
     const volumes = data.data.slice(-50).map(d => parseFloat(d.volume));
     const volumeSignal = data.indicators.volume_signal || [];
+    const volumeClusters = data.indicators.volume_clusters || [];
+    const volumeAnomaly = data.indicators.volume_anomaly || [];
     
     // Colorear barras según señal de volumen
     const volumeColors = volumes.map((vol, i) => {
@@ -904,9 +1021,80 @@ function renderVolumeChart(data) {
         marker: {color: volumeColors}
     }];
     
+    // Detectar clusters para marcarlos
+    const clusterMarkers = [];
+    for (let i = 0; i < volumeClusters.length; i++) {
+        if (volumeClusters[i]) {
+            clusterMarkers.push({
+                x: dates[i],
+                y: volumes[i] * 1.1
+            });
+        }
+    }
+    
+    if (clusterMarkers.length > 0) {
+        traces.push({
+            x: clusterMarkers.map(m => m.x),
+            y: clusterMarkers.map(m => m.y),
+            type: 'scatter',
+            mode: 'markers',
+            name: 'Cluster Volumen',
+            marker: {
+                color: '#FFD700',
+                size: 15,
+                symbol: 'star',
+                line: {color: 'white', width: 2}
+            }
+        });
+    }
+    
+    // Detectar anomalías individuales
+    const anomalyMarkers = [];
+    for (let i = 0; i < volumeAnomaly.length; i++) {
+        if (volumeAnomaly[i]) {
+            anomalyMarkers.push({
+                x: dates[i],
+                y: volumes[i] * 1.05,
+                signal: volumeSignal[i] || 'NEUTRAL'
+            });
+        }
+    }
+    
+    if (anomalyMarkers.filter(m => m.signal === 'COMPRA').length > 0) {
+        traces.push({
+            x: anomalyMarkers.filter(m => m.signal === 'COMPRA').map(m => m.x),
+            y: anomalyMarkers.filter(m => m.signal === 'COMPRA').map(m => m.y),
+            type: 'scatter',
+            mode: 'markers',
+            name: 'Anomalía Compra',
+            marker: {
+                color: '#00C853',
+                size: 10,
+                symbol: 'triangle-up',
+                line: {color: 'white', width: 1}
+            }
+        });
+    }
+    
+    if (anomalyMarkers.filter(m => m.signal === 'VENTA').length > 0) {
+        traces.push({
+            x: anomalyMarkers.filter(m => m.signal === 'VENTA').map(m => m.x),
+            y: anomalyMarkers.filter(m => m.signal === 'VENTA').map(m => m.y),
+            type: 'scatter',
+            mode: 'markers',
+            name: 'Anomalía Venta',
+            marker: {
+                color: '#FF1744',
+                size: 10,
+                symbol: 'triangle-down',
+                line: {color: 'white', width: 1}
+            }
+        });
+    }
+    
     const layout = {
         title: {
-            text: 'Indicador de Volumen con Anomalías',
+            text: 'Indicador de Volumen con Anomalías y Clusters',
             font: {color: '#ffffff', size: 14}
         },
         xaxis: {
@@ -923,7 +1111,14 @@ function renderVolumeChart(data) {
         plot_bgcolor: 'rgba(0,0,0,0)',
         paper_bgcolor: 'rgba(0,0,0,0)',
         font: {color: '#ffffff'},
-        showlegend: false,
+        showlegend: true,
+        legend: {
+            x: 0,
+            y: 1.1,
+            orientation: 'h',
+            font: {color: '#ffffff'},
+            bgcolor: 'rgba(0,0,0,0)'
+        },
         margin: {t: 60, r: 50, b: 50, l: 50}
     };
     
@@ -1035,6 +1230,11 @@ function renderMacdChart(data) {
     const macdSignal = data.indicators.macd_signal || [];
     const macdHistogram = data.indicators.macd_histogram || [];
     
+    // Detectar cruces MACD/Señal
+    const crosses = detectCrosses(macd.slice(-50), macdSignal.slice(-50));
+    const bullishCrosses = crosses.filter(c => c.type === 'bullish');
+    const bearishCrosses = crosses.filter(c => c.type === 'bearish');
+    
     // Colores para el histograma
     const histogramColors = macdHistogram.slice(-50).map(value => 
         value >= 0 ? 'rgba(0, 200, 83, 0.8)' : 'rgba(255, 23, 68, 0.8)'
@@ -1066,9 +1266,42 @@ function renderMacdChart(data) {
         }
     ];
     
+    // Añadir marcadores de cruces
+    if (bullishCrosses.length > 0) {
+        traces.push({
+            x: bullishCrosses.map(c => dates[c.index]),
+            y: bullishCrosses.map(c => c.value),
+            type: 'scatter',
+            mode: 'markers',
+            name: 'Cruce MACD > Señal',
+            marker: {
+                color: '#00C853',
+                size: 12,
+                symbol: 'triangle-up',
+                line: {color: 'white', width: 1}
+            }
+        });
+    }
+    
+    if (bearishCrosses.length > 0) {
+        traces.push({
+            x: bearishCrosses.map(c => dates[c.index]),
+            y: bearishCrosses.map(c => c.value),
+            type: 'scatter',
+            mode: 'markers',
+            name: 'Cruce MACD < Señal',
+            marker: {
+                color: '#FF1744',
+                size: 12,
+                symbol: 'triangle-down',
+                line: {color: 'white', width: 1}
+            }
+        });
+    }
+    
     const layout = {
         title: {
-            text: 'MACD con Histograma',
+            text: 'MACD con Histograma - Cruces Detectados',
             font: {color: '#ffffff', size: 14}
         },
         xaxis: {
@@ -1123,6 +1356,10 @@ function renderRsiTraditionalChart(data) {
 
     const dates = data.data.slice(-50).map(d => new Date(d.timestamp));
     const rsiTraditional = data.indicators.rsi_traditional || [];
+    const closes = data.data.slice(-50).map(d => parseFloat(d.close));
+    
+    // Detectar divergencias RSI Tradicional vs Precio
+    const rsiDivergences = detectDivergences(closes, rsiTraditional.slice(-50));
     
     const traces = [{
         x: dates,
@@ -1133,9 +1370,45 @@ function renderRsiTraditionalChart(data) {
         line: {color: '#2196F3', width: 2}
     }];
     
+    // Añadir marcadores de divergencias
+    const bullishDivergences = rsiDivergences.filter(d => d.divergenceType === 'bullish');
+    const bearishDivergences = rsiDivergences.filter(d => d.divergenceType === 'bearish');
+    
+    if (bullishDivergences.length > 0) {
+        traces.push({
+            x: bullishDivergences.map(d => dates[d.index]),
+            y: bullishDivergences.map(d => d.value),
+            type: 'scatter',
+            mode: 'markers',
+            name: 'Divergencia Alcista RSI',
+            marker: {
+                color: '#00C853',
+                size: 12,
+                symbol: 'triangle-up',
+                line: {color: 'white', width: 1}
+            }
+        });
+    }
+    
+    if (bearishDivergences.length > 0) {
+        traces.push({
+            x: bearishDivergences.map(d => dates[d.index]),
+            y: bearishDivergences.map(d => d.value),
+            type: 'scatter',
+            mode: 'markers',
+            name: 'Divergencia Bajista RSI',
+            marker: {
+                color: '#FF1744',
+                size: 12,
+                symbol: 'triangle-down',
+                line: {color: 'white', width: 1}
+            }
+        });
+    }
+    
     const layout = {
         title: {
-            text: 'RSI Tradicional (14 Periodos)',
+            text: 'RSI Tradicional (14 Periodos) - Divergencias',
             font: {color: '#ffffff', size: 14}
         },
         xaxis: {
@@ -1179,7 +1452,14 @@ function renderRsiTraditionalChart(data) {
         plot_bgcolor: 'rgba(0,0,0,0)',
         paper_bgcolor: 'rgba(0,0,0,0)',
         font: {color: '#ffffff'},
-        showlegend: false,
+        showlegend: true,
+        legend: {
+            x: 0,
+            y: 1.1,
+            orientation: 'h',
+            font: {color: '#ffffff'},
+            bgcolor: 'rgba(0,0,0,0)'
+        },
         margin: {t: 60, r: 50, b: 50, l: 50}
     };
     
@@ -1196,7 +1476,6 @@ function renderRsiTraditionalChart(data) {
     currentRsiTraditionalChart = Plotly.newPlot('rsi-traditional-chart', traces, layout, config);
 }
 
-// NUEVA FUNCIÓN: RENDERIZAR GRÁFICO RSI MAVERICK
 function renderRsiMaverickChart(data) {
     const chartElement = document.getElementById('rsi-maverick-chart');
     
@@ -1211,10 +1490,11 @@ function renderRsiMaverickChart(data) {
 
     const dates = data.data.slice(-50).map(d => new Date(d.timestamp));
     const rsiMaverick = data.indicators.rsi_maverick || [];
-    const bullishDiv = data.indicators.rsi_maverick_bullish_div || [];
-    const bearishDiv = data.indicators.rsi_maverick_bearish_div || [];
+    const closes = data.data.slice(-50).map(d => parseFloat(d.close));
     
-    // Crear trazas
+    // Detectar divergencias RSI Maverick vs Precio (solo la vela de confirmación)
+    const maverickDivergences = detectSingleDivergencePoints(closes, rsiMaverick.slice(-50));
+    
     const traces = [
         {
             x: dates,
@@ -1226,63 +1506,45 @@ function renderRsiMaverickChart(data) {
         }
     ];
     
-    // Añadir marcadores de divergencia alcista
-    const bullishMarkers = [];
-    const bullishMarkerValues = [];
+    // Añadir UN SOLO marcador de divergencia (el punto de confirmación)
+    const lastBullishDiv = maverickDivergences.filter(d => d.divergenceType === 'bullish').pop();
+    const lastBearishDiv = maverickDivergences.filter(d => d.divergenceType === 'bearish').pop();
     
-    // Añadir marcadores de divergencia bajista
-    const bearishMarkers = [];
-    const bearishMarkerValues = [];
-    
-    // Identificar puntos de divergencia
-    for (let i = 0; i < dates.length; i++) {
-        if (bullishDiv[i]) {
-            bullishMarkers.push(dates[i]);
-            bullishMarkerValues.push(rsiMaverick[i]);
-        }
-        if (bearishDiv[i]) {
-            bearishMarkers.push(dates[i]);
-            bearishMarkerValues.push(rsiMaverick[i]);
-        }
-    }
-    
-    // Traza para divergencias alcistas (triángulos verdes)
-    if (bullishMarkers.length > 0) {
+    if (lastBullishDiv) {
         traces.push({
-            x: bullishMarkers,
-            y: bullishMarkerValues,
+            x: [dates[lastBullishDiv.index]],
+            y: [lastBullishDiv.value],
             type: 'scatter',
             mode: 'markers',
-            name: 'Divergencia Alcista',
+            name: 'Confirmación Divergencia Alcista',
             marker: {
                 color: '#00C853',
-                size: 12,
+                size: 16,
                 symbol: 'triangle-up',
-                line: {color: '#ffffff', width: 1}
+                line: {color: 'white', width: 2}
             }
         });
     }
     
-    // Traza para divergencias bajistas (triángulos rojos)
-    if (bearishMarkers.length > 0) {
+    if (lastBearishDiv) {
         traces.push({
-            x: bearishMarkers,
-            y: bearishMarkerValues,
+            x: [dates[lastBearishDiv.index]],
+            y: [lastBearishDiv.value],
             type: 'scatter',
             mode: 'markers',
-            name: 'Divergencia Bajista',
+            name: 'Confirmación Divergencia Bajista',
             marker: {
                 color: '#FF1744',
-                size: 12,
+                size: 16,
                 symbol: 'triangle-down',
-                line: {color: '#ffffff', width: 1}
+                line: {color: 'white', width: 2}
             }
         });
     }
     
     const layout = {
         title: {
-            text: 'RSI Maverick con Divergencias (7 velas extendidas)',
+            text: 'RSI Maverick - Punto Único de Confirmación de Divergencia',
             font: {color: '#ffffff', size: 14}
         },
         xaxis: {
@@ -1372,13 +1634,167 @@ function renderRsiMaverickChart(data) {
     currentRsiMaverickChart = Plotly.newPlot('rsi-maverick-chart', traces, layout, config);
 }
 
+// FUNCIONES AUXILIARES PARA DETECCIÓN DE EVENTOS
+
+function detectCrosses(lineA, lineB) {
+    const crosses = [];
+    for (let i = 1; i < lineA.length; i++) {
+        if (lineA[i-1] <= lineB[i-1] && lineA[i] > lineB[i]) {
+            // Cruce alcista: línea A cruza por encima de línea B
+            crosses.push({
+                index: i,
+                value: lineA[i],
+                type: 'bullish'
+            });
+        } else if (lineA[i-1] >= lineB[i-1] && lineA[i] < lineB[i]) {
+            // Cruce bajista: línea A cruza por debajo de línea B
+            crosses.push({
+                index: i,
+                value: lineA[i],
+                type: 'bearish'
+            });
+        }
+    }
+    return crosses;
+}
+
+function detectDivergences(price, indicator, lookback = 5) {
+    const divergences = [];
+    
+    for (let i = lookback; i < price.length; i++) {
+        const priceWindow = price.slice(i - lookback, i + 1);
+        const indicatorWindow = indicator.slice(i - lookback, i + 1);
+        
+        // Buscar máximos y mínimos locales
+        const priceMaxIndex = findLocalMax(priceWindow);
+        const priceMinIndex = findLocalMin(priceWindow);
+        const indicatorMaxIndex = findLocalMax(indicatorWindow);
+        const indicatorMinIndex = findLocalMin(indicatorWindow);
+        
+        // Divergencia bajista: precio hace máximos más altos pero indicador hace máximos más bajos
+        if (priceMaxIndex !== -1 && indicatorMaxIndex !== -1) {
+            const priceMax = priceWindow[priceMaxIndex];
+            const indicatorMax = indicatorWindow[indicatorMaxIndex];
+            const prevPriceMax = price[Math.max(0, i - lookback - 1)];
+            const prevIndicatorMax = indicator[Math.max(0, i - lookback - 1)];
+            
+            if (priceMax > prevPriceMax && indicatorMax < prevIndicatorMax) {
+                divergences.push({
+                    index: i - lookback + priceMaxIndex,
+                    value: indicator[i - lookback + priceMaxIndex],
+                    divergenceType: 'bearish'
+                });
+            }
+        }
+        
+        // Divergencia alcista: precio hace mínimos más bajos pero indicador hace mínimos más altos
+        if (priceMinIndex !== -1 && indicatorMinIndex !== -1) {
+            const priceMin = priceWindow[priceMinIndex];
+            const indicatorMin = indicatorWindow[indicatorMinIndex];
+            const prevPriceMin = price[Math.max(0, i - lookback - 1)];
+            const prevIndicatorMin = indicator[Math.max(0, i - lookback - 1)];
+            
+            if (priceMin < prevPriceMin && indicatorMin > prevIndicatorMin) {
+                divergences.push({
+                    index: i - lookback + priceMinIndex,
+                    value: indicator[i - lookback + priceMinIndex],
+                    divergenceType: 'bullish'
+                });
+            }
+        }
+    }
+    
+    return divergences;
+}
+
+function detectSingleDivergencePoints(price, indicator, lookback = 14) {
+    const divergences = [];
+    const confirmationThreshold = 3; // Número de velas para confirmación
+    
+    for (let i = lookback; i < price.length; i++) {
+        const priceWindow = price.slice(i - lookback, i + 1);
+        const indicatorWindow = indicator.slice(i - lookback, i + 1);
+        
+        const priceMin = Math.min(...priceWindow);
+        const priceMax = Math.max(...priceWindow);
+        const indicatorMin = Math.min(...indicatorWindow);
+        const indicatorMax = Math.max(...indicatorWindow);
+        
+        const priceMinIndex = priceWindow.indexOf(priceMin);
+        const priceMaxIndex = priceWindow.indexOf(priceMax);
+        const indicatorMinIndex = indicatorWindow.indexOf(indicatorMin);
+        const indicatorMaxIndex = indicatorWindow.indexOf(indicatorMax);
+        
+        // Buscar divergencia bajista (solo el punto de confirmación)
+        if (priceMaxIndex > 0 && indicatorMaxIndex > 0) {
+            const windowStart = i - lookback;
+            const isBearishDivergence = 
+                price[windowStart + priceMaxIndex] > price[windowStart + priceMaxIndex - 1] &&
+                indicator[windowStart + indicatorMaxIndex] < indicator[windowStart + indicatorMaxIndex - 1];
+            
+            if (isBearishDivergence && priceMaxIndex === lookback) {
+                divergences.push({
+                    index: i,
+                    value: indicator[i],
+                    divergenceType: 'bearish'
+                });
+            }
+        }
+        
+        // Buscar divergencia alcista (solo el punto de confirmación)
+        if (priceMinIndex > 0 && indicatorMinIndex > 0) {
+            const windowStart = i - lookback;
+            const isBullishDivergence = 
+                price[windowStart + priceMinIndex] < price[windowStart + priceMinIndex - 1] &&
+                indicator[windowStart + indicatorMinIndex] > indicator[windowStart + indicatorMinIndex - 1];
+            
+            if (isBullishDivergence && priceMinIndex === lookback) {
+                divergences.push({
+                    index: i,
+                    value: indicator[i],
+                    divergenceType: 'bullish'
+                });
+            }
+        }
+    }
+    
+    return divergences;
+}
+
+function findLocalMax(array) {
+    if (array.length < 3) return -1;
+    
+    for (let i = 1; i < array.length - 1; i++) {
+        if (array[i] > array[i-1] && array[i] > array[i+1]) {
+            return i;
+        }
+    }
+    
+    // Si no hay máximo local claro, buscar el máximo absoluto
+    const maxVal = Math.max(...array);
+    return array.indexOf(maxVal);
+}
+
+function findLocalMin(array) {
+    if (array.length < 3) return -1;
+    
+    for (let i = 1; i < array.length - 1; i++) {
+        if (array[i] < array[i-1] && array[i] < array[i+1]) {
+            return i;
+        }
+    }
+    
+    // Si no hay mínimo local claro, buscar el mínimo absoluto
+    const minVal = Math.min(...array);
+    return array.indexOf(minVal);
+}
+
 function updateMarketSummary(data) {
     if (!data) return;
     
     const signalColor = data.signal === 'COMPRA' ? 'success' : data.signal === 'VENTA' ? 'danger' : 'secondary';
     const signalIcon = data.signal === 'COMPRA' ? '📈' : data.signal === 'VENTA' ? '📉' : '⚖️';
     
-    // Determinar estado RSI Maverick
     let rsiMaverickStatus = 'NEUTRAL';
     let rsiMaverickColor = 'warning';
     
@@ -1455,7 +1871,6 @@ function updateSignalAnalysis(data) {
     
     const signalAnalysis = document.getElementById('signal-analysis');
     
-    // Verificar si hay divergencia RSI Maverick para destacar
     const hasMaverickDivergence = data.rsi_maverick_bullish_div || data.rsi_maverick_bearish_div;
     const maverickDivText = hasMaverickDivergence ? 
         (data.rsi_maverick_bullish_div ? ' (Divergencia Alcista RSI Maverick)' : ' (Divergencia Bajista RSI Maverick)') : '';
@@ -1490,7 +1905,7 @@ function updateSignalAnalysis(data) {
                     <div class="mt-1">
                         <span class="badge bg-${data.rsi_maverick_bullish_div ? 'success' : 'danger'}">
                             <i class="fas fa-bolt me-1"></i>
-                            RSI Maverick Confirmado (7 velas)
+                            RSI Maverick Confirmado
                         </span>
                     </div>
                 ` : ''}
@@ -1522,7 +1937,6 @@ function updateSignalAnalysis(data) {
                 </div>
             ` : ''}
             
-            <!-- Información RSI Maverick -->
             ${data.rsi_maverick !== undefined ? `
                 <div class="mt-2">
                     <small class="text-muted d-block mb-1">RSI Maverick:</small>
