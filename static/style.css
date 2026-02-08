@@ -624,7 +624,7 @@ body {
 
 #adx-chart, #stoch-rsi-chart, #trend-strength-chart,
 #volume-chart, #whale-chart, #macd-chart,
-#rsi-traditional-chart {
+#rsi-traditional-chart, #rsi-maverick-chart {
     height: 300px !important;
 }
 
