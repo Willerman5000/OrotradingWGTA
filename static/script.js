@@ -7,6 +7,7 @@ let currentVolumeChart = null;
 let currentWhaleChart = null;
 let currentMacdChart = null;
 let currentRsiTraditionalChart = null;
+let currentRsiMaverickChart = null;
 let updateInterval = null;
 
 // Inicialización cuando el DOM está listo
@@ -144,7 +145,7 @@ function showLoadingState() {
             <div class="spinner-border spinner-border-sm text-info" role="status">
                 <span class="visually-hidden">Analizando...</span>
             </div>
-            <p class="text-muted mb-0 small">Evaluando 15 estrategias SPOT...</p>
+            <p class="text-muted mb-0 small">Evaluando 20 estrategias SPOT...</p>
         </div>
     `;
 }
@@ -202,6 +203,7 @@ function updateMainChart(symbol, interval, leverage) {
             renderWhaleChart(data);
             renderMacdChart(data);
             renderRsiTraditionalChart(data);
+            renderRsiMaverickChart(data); // NUEVO: Gráfico RSI Maverick
             
             // Actualizar resúmenes
             updateMarketSummary(data);
@@ -1194,11 +1196,204 @@ function renderRsiTraditionalChart(data) {
     currentRsiTraditionalChart = Plotly.newPlot('rsi-traditional-chart', traces, layout, config);
 }
 
+// NUEVA FUNCIÓN: RENDERIZAR GRÁFICO RSI MAVERICK
+function renderRsiMaverickChart(data) {
+    const chartElement = document.getElementById('rsi-maverick-chart');
+    
+    if (!data.indicators || !data.data) {
+        chartElement.innerHTML = `
+            <div class="alert alert-warning text-center">
+                <p class="mb-0">No hay datos de RSI Maverick disponibles</p>
+            </div>
+        `;
+        return;
+    }
+
+    const dates = data.data.slice(-50).map(d => new Date(d.timestamp));
+    const rsiMaverick = data.indicators.rsi_maverick || [];
+    const bullishDiv = data.indicators.rsi_maverick_bullish_div || [];
+    const bearishDiv = data.indicators.rsi_maverick_bearish_div || [];
+    
+    // Crear trazas
+    const traces = [
+        {
+            x: dates,
+            y: rsiMaverick.slice(-50),
+            type: 'scatter',
+            mode: 'lines',
+            name: 'RSI Maverick',
+            line: {color: '#FF9800', width: 2}
+        }
+    ];
+    
+    // Añadir marcadores de divergencia alcista
+    const bullishMarkers = [];
+    const bullishMarkerValues = [];
+    
+    // Añadir marcadores de divergencia bajista
+    const bearishMarkers = [];
+    const bearishMarkerValues = [];
+    
+    // Identificar puntos de divergencia
+    for (let i = 0; i < dates.length; i++) {
+        if (bullishDiv[i]) {
+            bullishMarkers.push(dates[i]);
+            bullishMarkerValues.push(rsiMaverick[i]);
+        }
+        if (bearishDiv[i]) {
+            bearishMarkers.push(dates[i]);
+            bearishMarkerValues.push(rsiMaverick[i]);
+        }
+    }
+    
+    // Traza para divergencias alcistas (triángulos verdes)
+    if (bullishMarkers.length > 0) {
+        traces.push({
+            x: bullishMarkers,
+            y: bullishMarkerValues,
+            type: 'scatter',
+            mode: 'markers',
+            name: 'Divergencia Alcista',
+            marker: {
+                color: '#00C853',
+                size: 12,
+                symbol: 'triangle-up',
+                line: {color: '#ffffff', width: 1}
+            }
+        });
+    }
+    
+    // Traza para divergencias bajistas (triángulos rojos)
+    if (bearishMarkers.length > 0) {
+        traces.push({
+            x: bearishMarkers,
+            y: bearishMarkerValues,
+            type: 'scatter',
+            mode: 'markers',
+            name: 'Divergencia Bajista',
+            marker: {
+                color: '#FF1744',
+                size: 12,
+                symbol: 'triangle-down',
+                line: {color: '#ffffff', width: 1}
+            }
+        });
+    }
+    
+    const layout = {
+        title: {
+            text: 'RSI Maverick con Divergencias (7 velas extendidas)',
+            font: {color: '#ffffff', size: 14}
+        },
+        xaxis: {
+            title: 'Fecha/Hora',
+            type: 'date',
+            gridcolor: '#444',
+            zerolinecolor: '#444'
+        },
+        yaxis: {
+            title: 'RSI Maverick (0-1)',
+            range: [0, 1],
+            gridcolor: '#444',
+            zerolinecolor: '#444'
+        },
+        shapes: [
+            {
+                type: 'line',
+                x0: dates[0],
+                x1: dates[dates.length - 1],
+                y0: 0.8,
+                y1: 0.8,
+                line: {color: 'red', width: 1, dash: 'dash'}
+            },
+            {
+                type: 'line',
+                x0: dates[0],
+                x1: dates[dates.length - 1],
+                y0: 0.2,
+                y1: 0.2,
+                line: {color: 'green', width: 1, dash: 'dash'}
+            },
+            {
+                type: 'line',
+                x0: dates[0],
+                x1: dates[dates.length - 1],
+                y0: 0.5,
+                y1: 0.5,
+                line: {color: 'white', width: 1, dash: 'solid'}
+            }
+        ],
+        annotations: [
+            {
+                x: dates[dates.length - 1],
+                y: 0.85,
+                xref: 'x',
+                yref: 'y',
+                text: 'SOBRECOMPRA',
+                showarrow: false,
+                font: {color: 'red', size: 10},
+                xanchor: 'right'
+            },
+            {
+                x: dates[dates.length - 1],
+                y: 0.15,
+                xref: 'x',
+                yref: 'y',
+                text: 'SOBREVENTA',
+                showarrow: false,
+                font: {color: 'green', size: 10},
+                xanchor: 'right'
+            }
+        ],
+        plot_bgcolor: 'rgba(0,0,0,0)',
+        paper_bgcolor: 'rgba(0,0,0,0)',
+        font: {color: '#ffffff'},
+        showlegend: true,
+        legend: {
+            x: 0,
+            y: 1.1,
+            orientation: 'h',
+            font: {color: '#ffffff'},
+            bgcolor: 'rgba(0,0,0,0)'
+        },
+        margin: {t: 60, r: 50, b: 50, l: 50}
+    };
+    
+    const config = {
+        responsive: true,
+        displayModeBar: true,
+        displaylogo: false
+    };
+    
+    if (currentRsiMaverickChart) {
+        Plotly.purge('rsi-maverick-chart');
+    }
+    
+    currentRsiMaverickChart = Plotly.newPlot('rsi-maverick-chart', traces, layout, config);
+}
+
 function updateMarketSummary(data) {
     if (!data) return;
     
     const signalColor = data.signal === 'COMPRA' ? 'success' : data.signal === 'VENTA' ? 'danger' : 'secondary';
     const signalIcon = data.signal === 'COMPRA' ? '📈' : data.signal === 'VENTA' ? '📉' : '⚖️';
+    
+    // Determinar estado RSI Maverick
+    let rsiMaverickStatus = 'NEUTRAL';
+    let rsiMaverickColor = 'warning';
+    
+    if (data.rsi_maverick !== undefined) {
+        if (data.rsi_maverick < 0.2) {
+            rsiMaverickStatus = 'SOBREVENTA';
+            rsiMaverickColor = 'success';
+        } else if (data.rsi_maverick > 0.8) {
+            rsiMaverickStatus = 'SOBRECOMPRA';
+            rsiMaverickColor = 'danger';
+        } else {
+            rsiMaverickStatus = 'NEUTRAL';
+            rsiMaverickColor = 'warning';
+        }
+    }
     
     const marketSummary = document.getElementById('market-summary');
     marketSummary.innerHTML = `
@@ -1217,6 +1412,18 @@ function updateMarketSummary(data) {
                 <div class="d-flex justify-content-between align-items-center mb-2">
                     <span class="text-muted small">Precio PAXG/BTC:</span>
                     <span class="fw-bold">${data.current_price ? data.current_price.toFixed(6) : '0.000000'}</span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="text-muted small">RSI Maverick:</span>
+                    <span class="badge bg-${rsiMaverickColor}">
+                        ${data.rsi_maverick !== undefined ? (data.rsi_maverick * 100).toFixed(1) : '0'}% - ${rsiMaverickStatus}
+                    </span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="text-muted small">Divergencia:</span>
+                    <span class="${data.rsi_maverick_bullish_div ? 'text-success' : data.rsi_maverick_bearish_div ? 'text-danger' : 'text-muted'}">
+                        ${data.rsi_maverick_bullish_div ? 'ALCISTA' : data.rsi_maverick_bearish_div ? 'BAJISTA' : 'NINGUNA'}
+                    </span>
                 </div>
                 <div class="d-flex justify-content-between align-items-center mb-2">
                     <span class="text-muted small">Volumen:</span>
@@ -1248,6 +1455,11 @@ function updateSignalAnalysis(data) {
     
     const signalAnalysis = document.getElementById('signal-analysis');
     
+    // Verificar si hay divergencia RSI Maverick para destacar
+    const hasMaverickDivergence = data.rsi_maverick_bullish_div || data.rsi_maverick_bearish_div;
+    const maverickDivText = hasMaverickDivergence ? 
+        (data.rsi_maverick_bullish_div ? ' (Divergencia Alcista RSI Maverick)' : ' (Divergencia Bajista RSI Maverick)') : '';
+    
     if (data.signal === 'NEUTRAL' || !data.signal_score || data.signal_score < 65) {
         signalAnalysis.innerHTML = `
             <div class="alert alert-secondary text-center py-2">
@@ -1255,6 +1467,14 @@ function updateSignalAnalysis(data) {
                 <strong>SEÑAL NEUTRAL SPOT</strong>
                 <div class="small mt-1">Score: ${data.signal_score ? data.signal_score.toFixed(1) : '0'}%</div>
                 <div class="small text-muted">Esperando mejores condiciones SPOT</div>
+                ${hasMaverickDivergence ? `
+                    <div class="mt-2">
+                        <span class="badge bg-${data.rsi_maverick_bullish_div ? 'success' : 'danger'}">
+                            <i class="fas fa-chart-line me-1"></i>
+                            Divergencia RSI Maverick detectada
+                        </span>
+                    </div>
+                ` : ''}
             </div>
         `;
     } else {
@@ -1264,8 +1484,16 @@ function updateSignalAnalysis(data) {
         signalAnalysis.innerHTML = `
             <div class="alert alert-${signalClass} text-center py-2">
                 <i class="fas fa-${signalIcon} me-2"></i>
-                <strong>SEÑAL ${data.signal} SPOT</strong>
+                <strong>SEÑAL ${data.signal} SPOT${maverickDivText}</strong>
                 <div class="small mt-1">Score: ${data.signal_score.toFixed(1)}%</div>
+                ${hasMaverickDivergence ? `
+                    <div class="mt-1">
+                        <span class="badge bg-${data.rsi_maverick_bullish_div ? 'success' : 'danger'}">
+                            <i class="fas fa-bolt me-1"></i>
+                            RSI Maverick Confirmado (7 velas)
+                        </span>
+                    </div>
+                ` : ''}
             </div>
             
             <div class="mt-2">
@@ -1290,6 +1518,27 @@ function updateSignalAnalysis(data) {
                         ${data.support_levels.slice(0, 3).map(support => `
                             <div>• ${support.toFixed(6)} BTC</div>
                         `).join('')}
+                    </div>
+                </div>
+            ` : ''}
+            
+            <!-- Información RSI Maverick -->
+            ${data.rsi_maverick !== undefined ? `
+                <div class="mt-2">
+                    <small class="text-muted d-block mb-1">RSI Maverick:</small>
+                    <div class="small">
+                        <div class="d-flex justify-content-between">
+                            <span>Valor:</span>
+                            <span class="${data.rsi_maverick < 0.2 ? 'text-success' : data.rsi_maverick > 0.8 ? 'text-danger' : 'text-warning'}">
+                                ${(data.rsi_maverick * 100).toFixed(1)}%
+                            </span>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <span>Estado:</span>
+                            <span class="${data.rsi_maverick < 0.2 ? 'text-success' : data.rsi_maverick > 0.8 ? 'text-danger' : 'text-warning'}">
+                                ${data.rsi_maverick < 0.2 ? 'Sobreventa' : data.rsi_maverick > 0.8 ? 'Sobrecompra' : 'Neutral'}
+                            </span>
+                        </div>
                     </div>
                 </div>
             ` : ''}
@@ -1335,3 +1584,13 @@ function updateChartIndicators() {
 window.addEventListener('load', function() {
     loadIndicatorOrder();
 });
+
+// Función para descargar reporte (debe estar disponible globalmente)
+function downloadReport() {
+    const symbol = "PAXG-BTC";
+    const interval = document.getElementById('interval-select').value;
+    const leverage = 1;
+    
+    const url = `/api/generate_report?symbol=${symbol}&interval=${interval}&leverage=${leverage}`;
+    window.open(url, '_blank');
+}
