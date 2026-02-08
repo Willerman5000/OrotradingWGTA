@@ -60,7 +60,13 @@ STRATEGY_TIMEFRAMES = {
     'Support Resistance Bounce': ['4h', '12h', '1D'],
     'Whale DMI Combo': ['12h', '1D'],
     'Parabolic SAR Momentum': ['4h', '12h', '1D'],
-    'Multi-Timeframe Confirmation': ['4h', '12h', '1D']
+    'Multi-Timeframe Confirmation': ['4h', '12h', '1D'],
+    # NUEVAS ESTRATEGIAS
+    'RSI Maverick DMI Divergence': ['4h', '12h', '1D'],
+    'RSI Maverick Stochastic Crossover': ['4h', '12h', '1D'],
+    'RSI Maverick MACD Divergence': ['4h', '12h', '1D'],
+    'Whale RSI Maverick Combo': ['12h', '1D'],
+    'RSI Maverick Trend Reversal': ['4h', '12h', '1D']
 }
 
 class TradingIndicator:
@@ -74,6 +80,7 @@ class TradingIndicator:
         self.volume_ema_signals = {}
         self.strategy_signals = {}
         self.support_resistance_alerts = {}
+        self.rsi_maverick_divergences = {}  # Cache para divergencias RSI Maverick
         
     def get_bolivia_time(self):
         """Obtener hora actual de Bolivia"""
@@ -861,13 +868,28 @@ class TradingIndicator:
         
         for i in range(n):
             if bullish_div[i]:
-                for j in range(1, min(5, n-i)):
+                for j in range(1, min(7, n-i)):
                     extended_bullish[i+j] = True
             if bearish_div[i]:
-                for j in range(1, min(5, n-i)):
+                for j in range(1, min(7, n-i)):
                     extended_bearish[i+j] = True
         
         return extended_bullish.tolist(), extended_bearish.tolist()
+
+    def check_di_crossover(self, plus_di, minus_di):
+        """Verificar cruces de DMI"""
+        n = len(plus_di)
+        di_cross_bullish = np.zeros(n, dtype=bool)
+        di_cross_bearish = np.zeros(n, dtype=bool)
+        
+        for i in range(1, n):
+            if plus_di[i] > minus_di[i] and plus_di[i-1] <= minus_di[i-1]:
+                di_cross_bullish[i] = True
+            
+            if minus_di[i] > plus_di[i] and minus_di[i-1] <= plus_di[i-1]:
+                di_cross_bearish[i] = True
+        
+        return di_cross_bullish.tolist(), di_cross_bearish.tolist()
 
     def detect_candlestick_patterns(self, open_prices, high, low, close):
         """Detectar patrones de velas japonesas"""
@@ -1036,6 +1058,100 @@ class TradingIndicator:
                 'atr': 0.0,
                 'atr_percentage': 0.0
             }
+
+    # ==============================================
+    # NUEVAS FUNCIONES PARA RSI MAVERICK
+    # ==============================================
+    
+    def calculate_rsi_maverick(self, close, length=20, bb_multiplier=2.0):
+        """Implementación del RSI Modificado Maverick"""
+        try:
+            n = len(close)
+            
+            # Calcular media móvil y desviación estándar
+            basis = np.array([np.mean(close[max(0, i-length+1):i+1]) for i in range(n)])
+            dev = np.array([np.std(close[max(0, i-length+1):i+1]) for i in range(n)])
+            
+            # Calcular bandas
+            upper = basis + (dev * bb_multiplier)
+            lower = basis - (dev * bb_multiplier)
+            
+            # Calcular posición porcentual dentro de las bandas
+            b_percent = np.zeros(n)
+            for i in range(n):
+                if (upper[i] - lower[i]) > 0:
+                    b_percent[i] = (close[i] - lower[i]) / (upper[i] - lower[i])
+                else:
+                    b_percent[i] = 0.5
+            
+            return b_percent.tolist()
+            
+        except Exception as e:
+            print(f"Error en calculate_rsi_maverick: {e}")
+            return [0.5] * len(close)
+    
+    def detect_rsi_maverick_divergence(self, price, rsi_maverick, lookback=14):
+        """Detectar divergencias específicas para RSI Maverick (7 velas extendidas)"""
+        n = len(price)
+        bullish_div = np.zeros(n, dtype=bool)
+        bearish_div = np.zeros(n, dtype=bool)
+        
+        for i in range(lookback, n-1):
+            price_window = price[i-lookback:i+1]
+            rsi_window = rsi_maverick[i-lookback:i+1]
+            
+            # Divergencia alcista: precio hace mínimos más bajos pero RSI Maverick hace mínimos más altos
+            if (price[i] < np.min(price_window[:-1]) and 
+                rsi_maverick[i] > np.min(rsi_window[:-1])):
+                bullish_div[i] = True
+                # Extender señal por 7 velas
+                for j in range(1, min(7, n-i)):
+                    bullish_div[i+j] = True
+            
+            # Divergencia bajista: precio hace máximos más altos pero RSI Maverick hace máximos más bajos
+            if (price[i] > np.max(price_window[:-1]) and 
+                rsi_maverick[i] < np.max(rsi_window[:-1])):
+                bearish_div[i] = True
+                # Extender señal por 7 velas
+                for j in range(1, min(7, n-i)):
+                    bearish_div[i+j] = True
+        
+        return bullish_div.tolist(), bearish_div.tolist()
+    
+    def get_rsi_maverick_divergence_signals(self, symbol, interval):
+        """Obtener señales de divergencia del RSI Maverick"""
+        cache_key = f"{symbol}_{interval}_rsi_maverick_div"
+        
+        if cache_key in self.rsi_maverick_divergences:
+            cached_data, timestamp = self.rsi_maverick_divergences[cache_key]
+            if (datetime.now() - timestamp).seconds < 300:
+                return cached_data
+        
+        try:
+            df = self.get_kucoin_data(symbol, interval, 100)
+            if df is None or len(df) < 50:
+                return {'bullish': [], 'bearish': []}
+            
+            close = df['close'].values
+            
+            # Calcular RSI Maverick
+            rsi_maverick = self.calculate_rsi_maverick(close)
+            
+            # Detectar divergencias extendidas por 7 velas
+            bullish_div, bearish_div = self.detect_rsi_maverick_divergence(close, rsi_maverick)
+            
+            result = {
+                'bullish': bullish_div,
+                'bearish': bearish_div,
+                'rsi_maverick': rsi_maverick
+            }
+            
+            self.rsi_maverick_divergences[cache_key] = (result, datetime.now())
+            return result
+            
+        except Exception as e:
+            print(f"Error en get_rsi_maverick_divergence_signals para {symbol} {interval}: {e}")
+            return {'bullish': [], 'bearish': [], 'rsi_maverick': []}
 
     # ==============================================
     # ESTRATEGIA 1: ICHIMOKU CLOUD BREAKOUT
@@ -2790,6 +2906,633 @@ class TradingIndicator:
             return None
 
     # ==============================================
+    # ESTRATEGIA 16: RSI MAVERICK DMI DIVERGENCE
+    # ==============================================
+    def check_rsi_maverick_dmi_divergence_signal(self, symbol, interval):
+        """Estrategia 16: RSI Maverick + DMI Divergence (NUEVA)"""
+        if symbol not in TOP_CRYPTO_SYMBOLS:
+            return None
+        if interval not in STRATEGY_TIMEFRAMES['RSI Maverick DMI Divergence']:
+            return None
+        
+        try:
+            df = self.get_kucoin_data(symbol, interval, 100)
+            if df is None or len(df) < 50:
+                return None
+            
+            close = df['close'].values
+            high = df['high'].values
+            low = df['low'].values
+            
+            # Obtener divergencias RSI Maverick (extendidas 7 velas)
+            rsi_maverick_div = self.get_rsi_maverick_divergence_signals(symbol, interval)
+            bullish_div = rsi_maverick_div['bullish']
+            bearish_div = rsi_maverick_div['bearish']
+            
+            if not bullish_div[-1] and not bearish_div[-1]:
+                return None
+            
+            # Calcular DMI/ADX
+            adx, plus_di, minus_di = self.calculate_adx(high, low, close)
+            di_cross_bullish, di_cross_bearish = self.check_di_crossover(plus_di, minus_di)
+            
+            # Verificar condiciones de tendencia
+            ma21 = self.calculate_sma(close, 21)
+            volume = df['volume'].values
+            volume_data = self.calculate_volume_anomaly(volume, close)
+            
+            ftm_data = self.calculate_trend_strength_maverick(close)
+            if ftm_data['no_trade_zones'][-1]:
+                return None
+            
+            signal_type = None
+            
+            # Señal COMPRA: Divergencia alcista RSI Maverick + Cruce DMI positivo + ADX fuerte
+            if (bullish_div[-1] and 
+                di_cross_bullish[-1] and 
+                adx[-1] > 25 and
+                close[-1] > ma21[-1] and
+                volume_data['volume_clusters'][-1] and
+                ftm_data['strength_signals'][-1] in ['STRONG_UP', 'WEAK_UP']):
+                
+                signal_type = 'COMPRA'
+            
+            # Señal VENTA: Divergencia bajista RSI Maverick + Cruce DMI negativo + ADX fuerte
+            elif (bearish_div[-1] and 
+                  di_cross_bearish[-1] and 
+                  adx[-1] > 25 and
+                  close[-1] < ma21[-1] and
+                  volume_data['volume_clusters'][-1] and
+                  ftm_data['strength_signals'][-1] in ['STRONG_DOWN', 'WEAK_DOWN']):
+                
+                signal_type = 'VENTA'
+            else:
+                return None
+            
+            multi_tf_ok = self.check_multi_timeframe_obligatory(symbol, interval, signal_type)
+            if not multi_tf_ok:
+                return None
+            
+            supports, resistances = self.calculate_support_resistance_channels(high, low, close)
+            levels_data = self.calculate_optimal_entry_exit(df, signal_type, 1, supports, resistances)
+            
+            chart_buffer = self.generate_rsi_maverick_dmi_chart(symbol, interval, df, 
+                                                               rsi_maverick_div['rsi_maverick'],
+                                                               bullish_div, bearish_div,
+                                                               adx, plus_di, minus_di,
+                                                               di_cross_bullish, di_cross_bearish,
+                                                               ftm_data, signal_type)
+            
+            signal_key = f"{symbol}_{interval}_RSI_MAVERICK_DMI_{signal_type}"
+            current_timestamp = int(time.time() / 60)
+            
+            if signal_key in self.strategy_signals:
+                last_sent = self.strategy_signals[signal_key]
+                if current_timestamp - last_sent < 60:
+                    return None
+            
+            self.strategy_signals[signal_key] = current_timestamp
+            
+            signal_data = {
+                'symbol': symbol,
+                'interval': interval,
+                'signal': signal_type,
+                'current_price': close[-1],
+                'entry': levels_data['entry'],
+                'stop_loss': levels_data['stop_loss'],
+                'take_profit': levels_data['take_profit'],
+                'support_levels': supports[:3],
+                'resistance_levels': resistances[:3],
+                'strategy': 'RSI MAVERICK DMI DIVERGENCE',
+                'chart': chart_buffer,
+                'filters': [
+                    f'Divergencia RSI Maverick {"alcista" if signal_type == "COMPRA" else "bajista"} (7 velas extendida)',
+                    f'Cruce {"+DI > -DI" if signal_type == "COMPRA" else "-DI > +DI"} confirmado',
+                    f'ADX > 25: {adx[-1]:.1f}',
+                    f'Clúster de volumen confirmado',
+                    f'Precio {" > " if signal_type == "COMPRA" else " < "} MA21',
+                    f'FTMaverick: {ftm_data["strength_signals"][-1]}'
+                ]
+            }
+            
+            if self.should_send_telegram_alert(interval):
+                signal_data['send_telegram'] = True
+            else:
+                signal_data['send_telegram'] = False
+            
+            return signal_data
+            
+        except Exception as e:
+            print(f"Error en check_rsi_maverick_dmi_divergence_signal para {symbol} {interval}: {e}")
+            return None
+
+    # ==============================================
+    # ESTRATEGIA 17: RSI MAVERICK STOCHASTIC CROSSOVER
+    # ==============================================
+    def check_rsi_maverick_stochastic_crossover_signal(self, symbol, interval):
+        """Estrategia 17: RSI Maverick + Stochastic Crossover (NUEVA)"""
+        if symbol not in TOP_CRYPTO_SYMBOLS:
+            return None
+        if interval not in STRATEGY_TIMEFRAMES['RSI Maverick Stochastic Crossover']:
+            return None
+        
+        try:
+            df = self.get_kucoin_data(symbol, interval, 100)
+            if df is None or len(df) < 50:
+                return None
+            
+            close = df['close'].values
+            high = df['high'].values
+            low = df['low'].values
+            
+            # Obtener divergencias RSI Maverick
+            rsi_maverick_div = self.get_rsi_maverick_divergence_signals(symbol, interval)
+            bullish_div = rsi_maverick_div['bullish']
+            bearish_div = rsi_maverick_div['bearish']
+            
+            if not bullish_div[-1] and not bearish_div[-1]:
+                return None
+            
+            # Calcular Stochastic RSI
+            stochastic_data = self.calculate_stochastic_rsi(close)
+            stoch_rsi = stochastic_data['stoch_rsi']
+            k_line = stochastic_data['k_line']
+            d_line = stochastic_data['d_line']
+            
+            # Verificar cruces Stochastic
+            stochastic_cross_bullish = k_line[-1] > d_line[-1] and k_line[-2] <= d_line[-2]
+            stochastic_cross_bearish = k_line[-1] < d_line[-1] and k_line[-2] >= d_line[-2]
+            
+            # Verificar niveles Stochastic
+            stochastic_oversold = stoch_rsi[-1] < 30
+            stochastic_overbought = stoch_rsi[-1] > 70
+            
+            # Verificar condiciones de tendencia
+            ma21 = self.calculate_sma(close, 21)
+            volume = df['volume'].values
+            volume_data = self.calculate_volume_anomaly(volume, close)
+            
+            ftm_data = self.calculate_trend_strength_maverick(close)
+            if ftm_data['no_trade_zones'][-1]:
+                return None
+            
+            signal_type = None
+            
+            # Señal COMPRA: Divergencia alcista RSI Maverick + Cruce Stochastic positivo + Oversold
+            if (bullish_div[-1] and 
+                stochastic_cross_bullish and
+                stochastic_oversold and
+                close[-1] > ma21[-1] and
+                volume_data['volume_clusters'][-1] and
+                ftm_data['strength_signals'][-1] in ['STRONG_UP', 'WEAK_UP']):
+                
+                signal_type = 'COMPRA'
+            
+            # Señal VENTA: Divergencia bajista RSI Maverick + Cruce Stochastic negativo + Overbought
+            elif (bearish_div[-1] and 
+                  stochastic_cross_bearish and
+                  stochastic_overbought and
+                  close[-1] < ma21[-1] and
+                  volume_data['volume_clusters'][-1] and
+                  ftm_data['strength_signals'][-1] in ['STRONG_DOWN', 'WEAK_DOWN']):
+                
+                signal_type = 'VENTA'
+            else:
+                return None
+            
+            multi_tf_ok = self.check_multi_timeframe_obligatory(symbol, interval, signal_type)
+            if not multi_tf_ok:
+                return None
+            
+            supports, resistances = self.calculate_support_resistance_channels(high, low, close)
+            levels_data = self.calculate_optimal_entry_exit(df, signal_type, 1, supports, resistances)
+            
+            chart_buffer = self.generate_rsi_maverick_stochastic_chart(symbol, interval, df, 
+                                                                     rsi_maverick_div['rsi_maverick'],
+                                                                     bullish_div, bearish_div,
+                                                                     stochastic_data,
+                                                                     ftm_data, signal_type)
+            
+            signal_key = f"{symbol}_{interval}_RSI_MAVERICK_STOCHASTIC_{signal_type}"
+            current_timestamp = int(time.time() / 60)
+            
+            if signal_key in self.strategy_signals:
+                last_sent = self.strategy_signals[signal_key]
+                if current_timestamp - last_sent < 60:
+                    return None
+            
+            self.strategy_signals[signal_key] = current_timestamp
+            
+            signal_data = {
+                'symbol': symbol,
+                'interval': interval,
+                'signal': signal_type,
+                'current_price': close[-1],
+                'entry': levels_data['entry'],
+                'stop_loss': levels_data['stop_loss'],
+                'take_profit': levels_data['take_profit'],
+                'support_levels': supports[:3],
+                'resistance_levels': resistances[:3],
+                'strategy': 'RSI MAVERICK STOCHASTIC CROSSOVER',
+                'chart': chart_buffer,
+                'filters': [
+                    f'Divergencia RSI Maverick {"alcista" if signal_type == "COMPRA" else "bajista"} (7 velas extendida)',
+                    f'Cruce Stochastic {"alcista" if signal_type == "COMPRA" else "bajista"} confirmado',
+                    f'Stochastic RSI {"sobreventa" if signal_type == "COMPRA" else "sobrecompra"}: {stoch_rsi[-1]:.1f}',
+                    f'Clúster de volumen confirmado',
+                    f'Precio {" > " if signal_type == "COMPRA" else " < "} MA21',
+                    f'FTMaverick: {ftm_data["strength_signals"][-1]}'
+                ]
+            }
+            
+            if self.should_send_telegram_alert(interval):
+                signal_data['send_telegram'] = True
+            else:
+                signal_data['send_telegram'] = False
+            
+            return signal_data
+            
+        except Exception as e:
+            print(f"Error en check_rsi_maverick_stochastic_crossover_signal para {symbol} {interval}: {e}")
+            return None
+
+    # ==============================================
+    # ESTRATEGIA 18: RSI MAVERICK MACD DIVERGENCE
+    # ==============================================
+    def check_rsi_maverick_macd_divergence_signal(self, symbol, interval):
+        """Estrategia 18: RSI Maverick + MACD Divergence (NUEVA)"""
+        if symbol not in TOP_CRYPTO_SYMBOLS:
+            return None
+        if interval not in STRATEGY_TIMEFRAMES['RSI Maverick MACD Divergence']:
+            return None
+        
+        try:
+            df = self.get_kucoin_data(symbol, interval, 100)
+            if df is None or len(df) < 50:
+                return None
+            
+            close = df['close'].values
+            high = df['high'].values
+            low = df['low'].values
+            
+            # Obtener divergencias RSI Maverick
+            rsi_maverick_div = self.get_rsi_maverick_divergence_signals(symbol, interval)
+            bullish_div = rsi_maverick_div['bullish']
+            bearish_div = rsi_maverick_div['bearish']
+            
+            if not bullish_div[-1] and not bearish_div[-1]:
+                return None
+            
+            # Calcular MACD
+            macd, signal, histogram = self.calculate_macd(close)
+            
+            # Detectar divergencias MACD
+            macd_bullish, macd_bearish = self.detect_divergence(close, macd)
+            
+            # Verificar cruces MACD
+            macd_cross_bullish = macd[-1] > signal[-1] and macd[-2] <= signal[-2]
+            macd_cross_bearish = macd[-1] < signal[-1] and macd[-2] >= signal[-2]
+            
+            # Verificar condiciones de tendencia
+            ma21 = self.calculate_sma(close, 21)
+            volume = df['volume'].values
+            volume_data = self.calculate_volume_anomaly(volume, close)
+            
+            ftm_data = self.calculate_trend_strength_maverick(close)
+            if ftm_data['no_trade_zones'][-1]:
+                return None
+            
+            signal_type = None
+            
+            # Señal COMPRA: Divergencia RSI Maverick + Divergencia MACD + Cruce MACD positivo
+            if (bullish_div[-1] and 
+                (macd_bullish[-1] or macd_cross_bullish) and
+                histogram[-1] > 0 and
+                close[-1] > ma21[-1] and
+                volume_data['volume_clusters'][-1] and
+                ftm_data['strength_signals'][-1] in ['STRONG_UP', 'WEAK_UP']):
+                
+                signal_type = 'COMPRA'
+            
+            # Señal VENTA: Divergencia RSI Maverick + Divergencia MACD + Cruce MACD negativo
+            elif (bearish_div[-1] and 
+                  (macd_bearish[-1] or macd_cross_bearish) and
+                  histogram[-1] < 0 and
+                  close[-1] < ma21[-1] and
+                  volume_data['volume_clusters'][-1] and
+                  ftm_data['strength_signals'][-1] in ['STRONG_DOWN', 'WEAK_DOWN']):
+                
+                signal_type = 'VENTA'
+            else:
+                return None
+            
+            multi_tf_ok = self.check_multi_timeframe_obligatory(symbol, interval, signal_type)
+            if not multi_tf_ok:
+                return None
+            
+            supports, resistances = self.calculate_support_resistance_channels(high, low, close)
+            levels_data = self.calculate_optimal_entry_exit(df, signal_type, 1, supports, resistances)
+            
+            chart_buffer = self.generate_rsi_maverick_macd_chart(symbol, interval, df, 
+                                                               rsi_maverick_div['rsi_maverick'],
+                                                               bullish_div, bearish_div,
+                                                               macd, signal, histogram,
+                                                               macd_bullish, macd_bearish,
+                                                               ftm_data, signal_type)
+            
+            signal_key = f"{symbol}_{interval}_RSI_MAVERICK_MACD_{signal_type}"
+            current_timestamp = int(time.time() / 60)
+            
+            if signal_key in self.strategy_signals:
+                last_sent = self.strategy_signals[signal_key]
+                if current_timestamp - last_sent < 60:
+                    return None
+            
+            self.strategy_signals[signal_key] = current_timestamp
+            
+            signal_data = {
+                'symbol': symbol,
+                'interval': interval,
+                'signal': signal_type,
+                'current_price': close[-1],
+                'entry': levels_data['entry'],
+                'stop_loss': levels_data['stop_loss'],
+                'take_profit': levels_data['take_profit'],
+                'support_levels': supports[:3],
+                'resistance_levels': resistances[:3],
+                'strategy': 'RSI MAVERICK MACD DIVERGENCE',
+                'chart': chart_buffer,
+                'filters': [
+                    f'Divergencia RSI Maverick {"alcista" if signal_type == "COMPRA" else "bajista"} (7 velas extendida)',
+                    f'{"Divergencia" if (macd_bullish[-1] if signal_type == "COMPRA" else macd_bearish[-1]) else "Cruce"} MACD {"alcista" if signal_type == "COMPRA" else "bajista"}',
+                    f'Histograma MACD {"positivo" if signal_type == "COMPRA" else "negativo"}',
+                    f'Clúster de volumen confirmado',
+                    f'Precio {" > " if signal_type == "COMPRA" else " < "} MA21',
+                    f'FTMaverick: {ftm_data["strength_signals"][-1]}'
+                ]
+            }
+            
+            if self.should_send_telegram_alert(interval):
+                signal_data['send_telegram'] = True
+            else:
+                signal_data['send_telegram'] = False
+            
+            return signal_data
+            
+        except Exception as e:
+            print(f"Error en check_rsi_maverick_macd_divergence_signal para {symbol} {interval}: {e}")
+            return None
+
+    # ==============================================
+    # ESTRATEGIA 19: WHALE RSI MAVERICK COMBO
+    # ==============================================
+    def check_whale_rsi_maverick_combo_signal(self, symbol, interval):
+        """Estrategia 19: Whale + RSI Maverick Combo para 12h y 1D (NUEVA)"""
+        if symbol not in TOP_CRYPTO_SYMBOLS:
+            return None
+        if interval not in STRATEGY_TIMEFRAMES['Whale RSI Maverick Combo']:
+            return None
+        
+        try:
+            df = self.get_kucoin_data(symbol, interval, 100)
+            if df is None or len(df) < 50:
+                return None
+            
+            close = df['close'].values
+            high = df['high'].values
+            low = df['low'].values
+            
+            # Obtener señales de ballenas
+            whale_data = self.calculate_whale_signals_improved(df)
+            
+            # Obtener divergencias RSI Maverick
+            rsi_maverick_div = self.get_rsi_maverick_divergence_signals(symbol, interval)
+            bullish_div = rsi_maverick_div['bullish']
+            bearish_div = rsi_maverick_div['bearish']
+            
+            # Verificar que haya señal de ballenas activa
+            whale_signal_active = whale_data['extended_buy'][-1] or whale_data['extended_sell'][-1]
+            
+            if not whale_signal_active:
+                return None
+            
+            # Verificar condiciones de tendencia
+            ma50 = self.calculate_sma(close, 50)
+            volume = df['volume'].values
+            volume_data = self.calculate_volume_anomaly(volume, close)
+            
+            ftm_data = self.calculate_trend_strength_maverick(close)
+            if ftm_data['no_trade_zones'][-1]:
+                return None
+            
+            signal_type = None
+            
+            # Señal COMPRA: Ballenas compradoras + Divergencia RSI Maverick alcista
+            if (whale_data['extended_buy'][-1] and 
+                bullish_div[-1] and
+                close[-1] > ma50[-1] and
+                volume_data['volume_clusters'][-1] and
+                ftm_data['strength_signals'][-1] in ['STRONG_UP', 'WEAK_UP']):
+                
+                signal_type = 'COMPRA'
+            
+            # Señal VENTA: Ballenas vendedoras + Divergencia RSI Maverick bajista
+            elif (whale_data['extended_sell'][-1] and 
+                  bearish_div[-1] and
+                  close[-1] < ma50[-1] and
+                  volume_data['volume_clusters'][-1] and
+                  ftm_data['strength_signals'][-1] in ['STRONG_DOWN', 'WEAK_DOWN']):
+                
+                signal_type = 'VENTA'
+            else:
+                return None
+            
+            multi_tf_ok = self.check_multi_timeframe_obligatory(symbol, interval, signal_type)
+            if not multi_tf_ok:
+                return None
+            
+            supports, resistances = self.calculate_support_resistance_channels(high, low, close)
+            levels_data = self.calculate_optimal_entry_exit(df, signal_type, 1, supports, resistances)
+            
+            chart_buffer = self.generate_whale_rsi_maverick_chart(symbol, interval, df, 
+                                                                whale_data,
+                                                                rsi_maverick_div['rsi_maverick'],
+                                                                bullish_div, bearish_div,
+                                                                ma50, volume_data,
+                                                                ftm_data, signal_type)
+            
+            signal_key = f"{symbol}_{interval}_WHALE_RSI_MAVERICK_{signal_type}"
+            current_timestamp = int(time.time() / 60)
+            
+            if signal_key in self.strategy_signals:
+                last_sent = self.strategy_signals[signal_key]
+                if current_timestamp - last_sent < 60:
+                    return None
+            
+            self.strategy_signals[signal_key] = current_timestamp
+            
+            signal_data = {
+                'symbol': symbol,
+                'interval': interval,
+                'signal': signal_type,
+                'current_price': close[-1],
+                'entry': levels_data['entry'],
+                'stop_loss': levels_data['stop_loss'],
+                'take_profit': levels_data['take_profit'],
+                'support_levels': supports[:3],
+                'resistance_levels': resistances[:3],
+                'strategy': 'WHALE RSI MAVERICK COMBO',
+                'chart': chart_buffer,
+                'filters': [
+                    f'Señal ballenas {"compradoras" if signal_type == "COMPRA" else "vendedoras"} extendida (7 velas)',
+                    f'Divergencia RSI Maverick {"alcista" if signal_type == "COMPRA" else "bajista"} (7 velas extendida)',
+                    f'Precio {" > " if signal_type == "COMPRA" else " < "} MA50',
+                    f'Clúster de volumen confirmado',
+                    f'FTMaverick: {ftm_data["strength_signals"][-1]}',
+                    f'Multi-Timeframe: Confirmado para {interval}'
+                ]
+            }
+            
+            if self.should_send_telegram_alert(interval):
+                signal_data['send_telegram'] = True
+            else:
+                signal_data['send_telegram'] = False
+            
+            return signal_data
+            
+        except Exception as e:
+            print(f"Error en check_whale_rsi_maverick_combo_signal para {symbol} {interval}: {e}")
+            return None
+
+    # ==============================================
+    # ESTRATEGIA 20: RSI MAVERICK TREND REVERSAL
+    # ==============================================
+    def check_rsi_maverick_trend_reversal_signal(self, symbol, interval):
+        """Estrategia 20: RSI Maverick Trend Reversal (NUEVA)"""
+        if symbol not in TOP_CRYPTO_SYMBOLS:
+            return None
+        if interval not in STRATEGY_TIMEFRAMES['RSI Maverick Trend Reversal']:
+            return None
+        
+        try:
+            df = self.get_kucoin_data(symbol, interval, 100)
+            if df is None or len(df) < 50:
+                return None
+            
+            close = df['close'].values
+            high = df['high'].values
+            low = df['low'].values
+            
+            # Obtener divergencias RSI Maverick
+            rsi_maverick_div = self.get_rsi_maverick_divergence_signals(symbol, interval)
+            bullish_div = rsi_maverick_div['bullish']
+            bearish_div = rsi_maverick_div['bearish']
+            
+            if not bullish_div[-1] and not bearish_div[-1]:
+                return None
+            
+            # Calcular indicadores de tendencia
+            ma9 = self.calculate_sma(close, 9)
+            ma21 = self.calculate_sma(close, 21)
+            ma50 = self.calculate_sma(close, 50)
+            
+            # Detectar cambio de tendencia
+            trend_bullish = close[-1] > ma9[-1] > ma21[-1] > ma50[-1]
+            trend_bearish = close[-1] < ma9[-1] < ma21[-1] < ma50[-1]
+            trend_reversal_bullish = close[-1] > ma9[-1] and ma9[-1] > ma21[-1] and close[-2] <= ma9[-2]
+            trend_reversal_bearish = close[-1] < ma9[-1] and ma9[-1] < ma21[-1] and close[-2] >= ma9[-2]
+            
+            # Calcular RSI tradicional para confirmación
+            rsi_traditional = self.calculate_rsi(close, 14)
+            
+            volume = df['volume'].values
+            volume_data = self.calculate_volume_anomaly(volume, close)
+            
+            ftm_data = self.calculate_trend_strength_maverick(close)
+            if ftm_data['no_trade_zones'][-1]:
+                return None
+            
+            signal_type = None
+            
+            # Señal COMPRA: Divergencia RSI Maverick + Reversión tendencia alcista + RSI tradicional no sobrecomprado
+            if (bullish_div[-1] and 
+                (trend_reversal_bullish or trend_bullish) and
+                rsi_traditional[-1] < 60 and
+                volume_data['volume_clusters'][-1] and
+                volume_data['volume_signal'][-1] == 'COMPRA' and
+                ftm_data['strength_signals'][-1] in ['STRONG_UP', 'WEAK_UP']):
+                
+                signal_type = 'COMPRA'
+            
+            # Señal VENTA: Divergencia RSI Maverick + Reversión tendencia bajista + RSI tradicional no sobrevendido
+            elif (bearish_div[-1] and 
+                  (trend_reversal_bearish or trend_bearish) and
+                  rsi_traditional[-1] > 40 and
+                  volume_data['volume_clusters'][-1] and
+                  volume_data['volume_signal'][-1] == 'VENTA' and
+                  ftm_data['strength_signals'][-1] in ['STRONG_DOWN', 'WEAK_DOWN']):
+                
+                signal_type = 'VENTA'
+            else:
+                return None
+            
+            multi_tf_ok = self.check_multi_timeframe_obligatory(symbol, interval, signal_type)
+            if not multi_tf_ok:
+                return None
+            
+            supports, resistances = self.calculate_support_resistance_channels(high, low, close)
+            levels_data = self.calculate_optimal_entry_exit(df, signal_type, 1, supports, resistances)
+            
+            chart_buffer = self.generate_rsi_maverick_trend_chart(symbol, interval, df, 
+                                                                rsi_maverick_div['rsi_maverick'],
+                                                                bullish_div, bearish_div,
+                                                                ma9, ma21, ma50,
+                                                                rsi_traditional, volume_data,
+                                                                ftm_data, signal_type)
+            
+            signal_key = f"{symbol}_{interval}_RSI_MAVERICK_TREND_{signal_type}"
+            current_timestamp = int(time.time() / 60)
+            
+            if signal_key in self.strategy_signals:
+                last_sent = self.strategy_signals[signal_key]
+                if current_timestamp - last_sent < 60:
+                    return None
+            
+            self.strategy_signals[signal_key] = current_timestamp
+            
+            signal_data = {
+                'symbol': symbol,
+                'interval': interval,
+                'signal': signal_type,
+                'current_price': close[-1],
+                'entry': levels_data['entry'],
+                'stop_loss': levels_data['stop_loss'],
+                'take_profit': levels_data['take_profit'],
+                'support_levels': supports[:3],
+                'resistance_levels': resistances[:3],
+                'strategy': 'RSI MAVERICK TREND REVERSAL',
+                'chart': chart_buffer,
+                'filters': [
+                    f'Divergencia RSI Maverick {"alcista" if signal_type == "COMPRA" else "bajista"} (7 velas extendida)',
+                    f'{"Reversión" if trend_reversal_bullish or trend_reversal_bearish else "Tendencia"} {"alcista" if signal_type == "COMPRA" else "bajista"} confirmada',
+                    f'RSI Tradicional: {rsi_traditional[-1]:.1f} (no {"sobrecomprado" if signal_type == "COMPRA" else "sobrevendido"})',
+                    f'Clúster de volumen confirmado',
+                    f'FTMaverick: {ftm_data["strength_signals"][-1]}'
+                ]
+            }
+            
+            if self.should_send_telegram_alert(interval):
+                signal_data['send_telegram'] = True
+            else:
+                signal_data['send_telegram'] = False
+            
+            return signal_data
+            
+        except Exception as e:
+            print(f"Error en check_rsi_maverick_trend_reversal_signal para {symbol} {interval}: {e}")
+            return None
+
+    # ==============================================
     # ALERTAS DE SALIDA - SOPORTES Y RESISTENCIAS
     # ==============================================
     def check_exit_signals(self):
@@ -2886,17 +3629,22 @@ class TradingIndicator:
         return exit_alerts
 
     # ==============================================
-    # GENERACIÓN DE GRÁFICOS
+    # GENERACIÓN DE GRÁFICOS PARA NUEVAS ESTRATEGIAS
     # ==============================================
     
-    def generate_ichimoku_chart(self, symbol, interval, df, ichimoku, ftm_data, confirm_pattern, signal_type):
-        """Generar gráfico para Ichimoku"""
+    def generate_rsi_maverick_dmi_chart(self, symbol, interval, df, rsi_maverick, 
+                                       bullish_div, bearish_div,
+                                       adx, plus_di, minus_di,
+                                       di_cross_bullish, di_cross_bearish,
+                                       ftm_data, signal_type):
+        """Generar gráfico para RSI Maverick + DMI Divergence"""
         try:
-            fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 10))
+            fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(12, 12))
             
             dates = df['timestamp'].iloc[-50:].values
             dates_matplotlib = mdates.date2num(dates)
             
+            # Gráfico de precios
             for i in range(len(dates_matplotlib)):
                 open_price = df['open'].iloc[-50+i]
                 close_price = df['close'].iloc[-50+i]
@@ -2907,26 +3655,40 @@ class TradingIndicator:
                 ax1.plot([dates_matplotlib[i], dates_matplotlib[i]], [low_price, high_price], color='black', linewidth=1)
                 ax1.plot([dates_matplotlib[i], dates_matplotlib[i]], [open_price, close_price], color=color, linewidth=3)
             
-            ax1.plot(dates_matplotlib, ichimoku['tenkan_sen'][-50:], 'blue', linewidth=1, label='Tenkan-sen')
-            ax1.plot(dates_matplotlib, ichimoku['kijun_sen'][-50:], 'red', linewidth=1, label='Kijun-sen')
-            ax1.plot(dates_matplotlib, ichimoku['cloud_top'][-50:], 'green', alpha=0.3, linewidth=1, label='Nube Superior')
-            ax1.plot(dates_matplotlib, ichimoku['cloud_bottom'][-50:], 'red', alpha=0.3, linewidth=1, label='Nube Inferior')
-            ax1.fill_between(dates_matplotlib, ichimoku['cloud_bottom'][-50:], ichimoku['cloud_top'][-50:], 
-                           color='gray', alpha=0.2, label='Nube Ichimoku')
-            
-            ax1.set_title(f'Ichimoku Cloud - {symbol} - {interval} - Señal {signal_type}')
-            ax1.legend()
+            ax1.set_title(f'RSI Maverick + DMI Divergence - {symbol} - {interval} - Señal {signal_type}')
+            ax1.set_ylabel('Precio (BTC)')
             ax1.grid(True, alpha=0.3)
             
-            trend_strength = ftm_data['trend_strength'][-50:]
-            colors = ftm_data['colors'][-50:]
+            # Gráfico de RSI Maverick
+            ax2.plot(dates_matplotlib, rsi_maverick[-50:], 'blue', linewidth=2, label='RSI Maverick')
+            
+            # Marcar divergencias
             for i in range(len(dates_matplotlib)):
-                ax2.bar(dates_matplotlib[i], trend_strength[i], color=colors[i], alpha=0.7, width=0.8)
-            ax2.axhline(y=ftm_data['high_zone_threshold'], color='orange', linestyle='--', alpha=0.7)
-            ax2.axhline(y=-ftm_data['high_zone_threshold'], color='orange', linestyle='--', alpha=0.7)
-            ax2.set_ylabel('Fuerza Tendencia')
+                if bullish_div[-50+i]:
+                    ax2.scatter(dates_matplotlib[i], rsi_maverick[-50+i], color='green', s=50, marker='^', label='Div Alcista' if i == 0 else "")
+                if bearish_div[-50+i]:
+                    ax2.scatter(dates_matplotlib[i], rsi_maverick[-50+i], color='red', s=50, marker='v', label='Div Bajista' if i == 0 else "")
+            
+            ax2.set_ylabel('RSI Maverick')
+            ax2.legend()
             ax2.grid(True, alpha=0.3)
             
+            # Gráfico de ADX/DMI
+            ax3.plot(dates_matplotlib, adx[-50:], 'black', linewidth=2, label='ADX')
+            ax3.plot(dates_matplotlib, plus_di[-50:], 'green', linewidth=1, label='+DI')
+            ax3.plot(dates_matplotlib, minus_di[-50:], 'red', linewidth=1, label='-DI')
+            
+            # Marcar cruces DMI
+            for i in range(len(dates_matplotlib)):
+                if di_cross_bullish[-50+i]:
+                    ax3.scatter(dates_matplotlib[i], plus_di[-50+i], color='green', s=80, marker='^', label='Cruce +DI' if i == 0 else "")
+                if di_cross_bearish[-50+i]:
+                    ax3.scatter(dates_matplotlib[i], minus_di[-50+i], color='red', s=80, marker='v', label='Cruce -DI' if i == 0 else "")
+            
+            ax3.set_ylabel('ADX/DMI')
+            ax3.legend()
+            ax3.grid(True, alpha=0.3)
+            
             plt.tight_layout()
             buffer = BytesIO()
             plt.savefig(buffer, format='png', dpi=100)
@@ -2936,18 +3698,20 @@ class TradingIndicator:
             return buffer
             
         except Exception as e:
-            print(f"Error generando gráfico Ichimoku: {e}")
+            print(f"Error generando gráfico RSI Maverick DMI: {e}")
             return None
-
-    def generate_fibonacci_supertrend_chart(self, symbol, interval, df, supertrend_data, fib_levels, 
-                                          ftm_data, signal_type):
-        """Generar gráfico para Fibonacci Supertrend"""
+    
+    def generate_rsi_maverick_stochastic_chart(self, symbol, interval, df, rsi_maverick, 
+                                              bullish_div, bearish_div,
+                                              stochastic_data, ftm_data, signal_type):
+        """Generar gráfico para RSI Maverick + Stochastic Crossover"""
         try:
-            fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 10))
+            fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(12, 12))
             
             dates = df['timestamp'].iloc[-50:].values
             dates_matplotlib = mdates.date2num(dates)
             
+            # Gráfico de precios
             for i in range(len(dates_matplotlib)):
                 open_price = df['open'].iloc[-50+i]
                 close_price = df['close'].iloc[-50+i]
@@ -2958,23 +3722,36 @@ class TradingIndicator:
                 ax1.plot([dates_matplotlib[i], dates_matplotlib[i]], [low_price, high_price], color='black', linewidth=1)
                 ax1.plot([dates_matplotlib[i], dates_matplotlib[i]], [open_price, close_price], color=color, linewidth=3)
             
-            ax1.plot(dates_matplotlib, supertrend_data['supertrend'][-50:], 'orange', linewidth=2, label='SuperTrend')
-            
-            for level_name, level_value in fib_levels.items():
-                if level_name in ['0.236', '0.382', '0.5', '0.618']:
-                    ax1.axhline(y=level_value, color='purple', linestyle='--', alpha=0.5, label=f'Fib {level_name}')
-            
-            ax1.set_title(f'Fibonacci Supertrend - {symbol} - {interval} - Señal {signal_type}')
-            ax1.legend()
+            ax1.set_title(f'RSI Maverick + Stochastic Crossover - {symbol} - {interval} - Señal {signal_type}')
+            ax1.set_ylabel('Precio (BTC)')
             ax1.grid(True, alpha=0.3)
             
-            trend_strength = ftm_data['trend_strength'][-50:]
-            colors = ftm_data['colors'][-50:]
+            # Gráfico de RSI Maverick
+            ax2.plot(dates_matplotlib, rsi_maverick[-50:], 'blue', linewidth=2, label='RSI Maverick')
+            
+            # Marcar divergencias
             for i in range(len(dates_matplotlib)):
-                ax2.bar(dates_matplotlib[i], trend_strength[i], color=colors[i], alpha=0.7, width=0.8)
-            ax2.set_ylabel('Fuerza Tendencia')
+                if bullish_div[-50+i]:
+                    ax2.scatter(dates_matplotlib[i], rsi_maverick[-50+i], color='green', s=50, marker='^', label='Div Alcista' if i == 0 else "")
+                if bearish_div[-50+i]:
+                    ax2.scatter(dates_matplotlib[i], rsi_maverick[-50+i], color='red', s=50, marker='v', label='Div Bajista' if i == 0 else "")
+            
+            ax2.set_ylabel('RSI Maverick')
+            ax2.legend()
             ax2.grid(True, alpha=0.3)
             
+            # Gráfico de Stochastic RSI
+            ax3.plot(dates_matplotlib, stochastic_data['stoch_rsi'][-50:], 'blue', linewidth=1, label='Stoch RSI')
+            ax3.plot(dates_matplotlib, stochastic_data['k_line'][-50:], 'green', linewidth=1, label='%K')
+            ax3.plot(dates_matplotlib, stochastic_data['d_line'][-50:], 'red', linewidth=1, label='%D')
+            
+            ax3.axhline(y=80, color='red', linestyle='--', alpha=0.3)
+            ax3.axhline(y=20, color='green', linestyle='--', alpha=0.3)
+            
+            ax3.set_ylabel('Stochastic RSI')
+            ax3.legend()
+            ax3.grid(True, alpha=0.3)
+            
             plt.tight_layout()
             buffer = BytesIO()
             plt.savefig(buffer, format='png', dpi=100)
@@ -2984,18 +3761,22 @@ class TradingIndicator:
             return buffer
             
         except Exception as e:
-            print(f"Error generando gráfico Fibonacci Supertrend: {e}")
+            print(f"Error generando gráfico RSI Maverick Stochastic: {e}")
             return None
-
-    def generate_cryptodivisa_chart(self, symbol, interval, df, ma_9, ma_53, ma_180, 
-                                   ftm_data, signal_type):
-        """Generar gráfico para CryptoDivisa"""
+    
+    def generate_rsi_maverick_macd_chart(self, symbol, interval, df, rsi_maverick, 
+                                        bullish_div, bearish_div,
+                                        macd, signal, histogram,
+                                        macd_bullish, macd_bearish,
+                                        ftm_data, signal_type):
+        """Generar gráfico para RSI Maverick + MACD Divergence"""
         try:
-            fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 10))
+            fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(12, 12))
             
             dates = df['timestamp'].iloc[-50:].values
             dates_matplotlib = mdates.date2num(dates)
             
+            # Gráfico de precios
             for i in range(len(dates_matplotlib)):
                 open_price = df['open'].iloc[-50+i]
                 close_price = df['close'].iloc[-50+i]
@@ -3006,21 +3787,44 @@ class TradingIndicator:
                 ax1.plot([dates_matplotlib[i], dates_matplotlib[i]], [low_price, high_price], color='black', linewidth=1)
                 ax1.plot([dates_matplotlib[i], dates_matplotlib[i]], [open_price, close_price], color=color, linewidth=3)
             
-            ax1.plot(dates_matplotlib, ma_9[-50:], 'red', linewidth=1, label='MA9')
-            ax1.plot(dates_matplotlib, ma_53[-50:], 'blue', linewidth=1, label='MA53')
-            ax1.plot(dates_matplotlib, ma_180[-50:], 'green', linewidth=2, label='MA180')
-            
-            ax1.set_title(f'CryptoDivisa - {symbol} - {interval} - Señal {signal_type}')
-            ax1.legend()
+            ax1.set_title(f'RSI Maverick + MACD Divergence - {symbol} - {interval} - Señal {signal_type}')
+            ax1.set_ylabel('Precio (BTC)')
             ax1.grid(True, alpha=0.3)
             
-            trend_strength = ftm_data['trend_strength'][-50:]
-            colors = ftm_data['colors'][-50:]
+            # Gráfico de RSI Maverick
+            ax2.plot(dates_matplotlib, rsi_maverick[-50:], 'blue', linewidth=2, label='RSI Maverick')
+            
+            # Marcar divergencias
             for i in range(len(dates_matplotlib)):
-                ax2.bar(dates_matplotlib[i], trend_strength[i], color=colors[i], alpha=0.7, width=0.8)
-            ax2.set_ylabel('Fuerza Tendencia')
+                if bullish_div[-50+i]:
+                    ax2.scatter(dates_matplotlib[i], rsi_maverick[-50+i], color='green', s=50, marker='^', label='Div Alcista' if i == 0 else "")
+                if bearish_div[-50+i]:
+                    ax2.scatter(dates_matplotlib[i], rsi_maverick[-50+i], color='red', s=50, marker='v', label='Div Bajista' if i == 0 else "")
+            
+            ax2.set_ylabel('RSI Maverick')
+            ax2.legend()
             ax2.grid(True, alpha=0.3)
             
+            # Gráfico de MACD
+            ax3.plot(dates_matplotlib, macd[-50:], 'blue', linewidth=1, label='MACD')
+            ax3.plot(dates_matplotlib, signal[-50:], 'red', linewidth=1, label='Señal')
+            
+            # Histograma MACD
+            colors = ['green' if h >= 0 else 'red' for h in histogram[-50:]]
+            ax3.bar(dates_matplotlib, histogram[-50:], color=colors, alpha=0.6, width=0.8)
+            
+            # Marcar divergencias MACD
+            for i in range(len(dates_matplotlib)):
+                if macd_bullish[-50+i]:
+                    ax3.scatter(dates_matplotlib[i], macd[-50+i], color='green', s=80, marker='^', label='Div MACD Alcista' if i == 0 else "")
+                if macd_bearish[-50+i]:
+                    ax3.scatter(dates_matplotlib[i], macd[-50+i], color='red', s=80, marker='v', label='Div MACD Bajista' if i == 0 else "")
+            
+            ax3.axhline(y=0, color='gray', linestyle='-', alpha=0.5)
+            ax3.set_ylabel('MACD')
+            ax3.legend()
+            ax3.grid(True, alpha=0.3)
+            
             plt.tight_layout()
             buffer = BytesIO()
             plt.savefig(buffer, format='png', dpi=100)
@@ -3030,18 +3834,20 @@ class TradingIndicator:
             return buffer
             
         except Exception as e:
-            print(f"Error generando gráfico CryptoDivisa: {e}")
+            print(f"Error generando gráfico RSI Maverick MACD: {e}")
             return None
-
-    def generate_support_resistance_chart(self, symbol, interval, df, supports, resistances, 
-                                        target_level, signal_type, ftm_data):
-        """Generar gráfico para soportes y resistencias"""
+    
+    def generate_whale_rsi_maverick_chart(self, symbol, interval, df, whale_data,
+                                         rsi_maverick, bullish_div, bearish_div,
+                                         ma50, volume_data, ftm_data, signal_type):
+        """Generar gráfico para Whale + RSI Maverick Combo"""
         try:
-            fig, ax1 = plt.subplots(1, 1, figsize=(12, 8))
+            fig, (ax1, ax2, ax3, ax4) = plt.subplots(4, 1, figsize=(12, 14))
             
             dates = df['timestamp'].iloc[-50:].values
             dates_matplotlib = mdates.date2num(dates)
             
+            # Gráfico de precios
             for i in range(len(dates_matplotlib)):
                 open_price = df['open'].iloc[-50+i]
                 close_price = df['close'].iloc[-50+i]
@@ -3052,25 +3858,68 @@ class TradingIndicator:
                 ax1.plot([dates_matplotlib[i], dates_matplotlib[i]], [low_price, high_price], color='black', linewidth=1)
                 ax1.plot([dates_matplotlib[i], dates_matplotlib[i]], [open_price, close_price], color=color, linewidth=3)
             
-            for support in supports[:3]:
-                if support > 0:
-                    ax1.axhline(y=support, color='green', linestyle='--', alpha=0.7, label=f'Soporte {support:.6f}')
+            # MA50
+            ax1.plot(dates_matplotlib, ma50[-50:], 'orange', linewidth=2, label='MA50')
             
-            for resistance in resistances[:3]:
-                if resistance > 0:
-                    ax1.axhline(y=resistance, color='red', linestyle='--', alpha=0.7, label=f'Resistencia {resistance:.6f}')
-            
-            if target_level:
-                ax1.axhline(y=target_level, color='orange', linewidth=3, alpha=0.8, 
-                           label=f'Nivel {"Resistencia" if signal_type == "VENTA" else "Soporte"}: {target_level:.6f}')
-            
-            current_price = df['close'].iloc[-1]
-            ax1.scatter(dates_matplotlib[-1], current_price, color='blue', s=100, 
-                       marker='^' if signal_type == 'COMPRA' else 'v', label=f'Señal {signal_type}')
-            
-            ax1.set_title(f'Estrategia S/R - {symbol} - {interval} - {signal_type}')
+            ax1.set_title(f'Whale + RSI Maverick Combo - {symbol} - {interval} - Señal {signal_type}')
+            ax1.set_ylabel('Precio (BTC)')
             ax1.legend()
             ax1.grid(True, alpha=0.3)
+            
+            # Gráfico de RSI Maverick
+            ax2.plot(dates_matplotlib, rsi_maverick[-50:], 'blue', linewidth=2, label='RSI Maverick')
+            
+            # Marcar divergencias
+            for i in range(len(dates_matplotlib)):
+                if bullish_div[-50+i]:
+                    ax2.scatter(dates_matplotlib[i], rsi_maverick[-50+i], color='green', s=50, marker='^', label='Div Alcista' if i == 0 else "")
+                if bearish_div[-50+i]:
+                    ax2.scatter(dates_matplotlib[i], rsi_maverick[-50+i], color='red', s=50, marker='v', label='Div Bajista' if i == 0 else "")
+            
+            ax2.set_ylabel('RSI Maverick')
+            ax2.legend()
+            ax2.grid(True, alpha=0.3)
+            
+            # Gráfico de señales de ballenas
+            ax3.bar(dates_matplotlib, whale_data['whale_pump'][-50:], color='green', alpha=0.7, label='Ballenas Compradoras')
+            ax3.bar(dates_matplotlib, whale_data['whale_dump'][-50:], color='red', alpha=0.7, label='Ballenas Vendedoras')
+            
+            # Marcar señales extendidas
+            for i in range(len(dates_matplotlib)):
+                if whale_data['extended_buy'][-50+i]:
+                    ax3.scatter(dates_matplotlib[i], max(whale_data['whale_pump'][-50:]) * 1.1, 
+                              color='green', s=100, marker='^', label='Señal Compra Extendida' if i == 0 else "")
+                if whale_data['extended_sell'][-50+i]:
+                    ax3.scatter(dates_matplotlib[i], max(whale_data['whale_dump'][-50:]) * 1.1, 
+                              color='red', s=100, marker='v', label='Señal Venta Extendida' if i == 0 else "")
+            
+            ax3.set_ylabel('Señales Ballenas')
+            ax3.legend()
+            ax3.grid(True, alpha=0.3)
+            
+            # Gráfico de volumen
+            volumes = df['volume'].iloc[-50:].values
+            volume_colors = []
+            for i in range(len(dates_matplotlib)):
+                signal = volume_data['volume_signal'][-50+i] if len(volume_data['volume_signal']) > -50+i else 'NEUTRAL'
+                if signal == 'COMPRA':
+                    volume_colors.append('green')
+                elif signal == 'VENTA':
+                    volume_colors.append('red')
+                else:
+                    volume_colors.append('gray')
+            
+            ax4.bar(dates_matplotlib, volumes, color=volume_colors, alpha=0.6)
+            
+            # Marcar clusters de volumen
+            for i in range(len(dates_matplotlib)):
+                if volume_data['volume_clusters'][-50+i]:
+                    ax4.scatter(dates_matplotlib[i], max(volumes) * 1.1, 
+                              color='orange', s=50, marker='*', label='Cluster Volumen' if i == 0 else "")
+            
+            ax4.set_ylabel('Volumen')
+            ax4.legend()
+            ax4.grid(True, alpha=0.3)
             
             plt.tight_layout()
             buffer = BytesIO()
@@ -3081,7 +3930,100 @@ class TradingIndicator:
             return buffer
             
         except Exception as e:
-            print(f"Error generando gráfico S/R: {e}")
+            print(f"Error generando gráfico Whale RSI Maverick: {e}")
+            return None
+    
+    def generate_rsi_maverick_trend_chart(self, symbol, interval, df, rsi_maverick, 
+                                         bullish_div, bearish_div,
+                                         ma9, ma21, ma50,
+                                         rsi_traditional, volume_data,
+                                         ftm_data, signal_type):
+        """Generar gráfico para RSI Maverick Trend Reversal"""
+        try:
+            fig, (ax1, ax2, ax3, ax4) = plt.subplots(4, 1, figsize=(12, 14))
+            
+            dates = df['timestamp'].iloc[-50:].values
+            dates_matplotlib = mdates.date2num(dates)
+            
+            # Gráfico de precios con MAs
+            for i in range(len(dates_matplotlib)):
+                open_price = df['open'].iloc[-50+i]
+                close_price = df['close'].iloc[-50+i]
+                high_price = df['high'].iloc[-50+i]
+                low_price = df['low'].iloc[-50+i]
+                
+                color = 'green' if close_price >= open_price else 'red'
+                ax1.plot([dates_matplotlib[i], dates_matplotlib[i]], [low_price, high_price], color='black', linewidth=1)
+                ax1.plot([dates_matplotlib[i], dates_matplotlib[i]], [open_price, close_price], color=color, linewidth=3)
+            
+            # Medias móviles
+            ax1.plot(dates_matplotlib, ma9[-50:], 'red', linewidth=1, label='MA9')
+            ax1.plot(dates_matplotlib, ma21[-50:], 'blue', linewidth=1, label='MA21')
+            ax1.plot(dates_matplotlib, ma50[-50:], 'orange', linewidth=2, label='MA50')
+            
+            ax1.set_title(f'RSI Maverick Trend Reversal - {symbol} - {interval} - Señal {signal_type}')
+            ax1.set_ylabel('Precio (BTC)')
+            ax1.legend()
+            ax1.grid(True, alpha=0.3)
+            
+            # Gráfico de RSI Maverick
+            ax2.plot(dates_matplotlib, rsi_maverick[-50:], 'blue', linewidth=2, label='RSI Maverick')
+            
+            # Marcar divergencias
+            for i in range(len(dates_matplotlib)):
+                if bullish_div[-50+i]:
+                    ax2.scatter(dates_matplotlib[i], rsi_maverick[-50+i], color='green', s=50, marker='^', label='Div Alcista' if i == 0 else "")
+                if bearish_div[-50+i]:
+                    ax2.scatter(dates_matplotlib[i], rsi_maverick[-50+i], color='red', s=50, marker='v', label='Div Bajista' if i == 0 else "")
+            
+            ax2.set_ylabel('RSI Maverick')
+            ax2.legend()
+            ax2.grid(True, alpha=0.3)
+            
+            # Gráfico de RSI Tradicional
+            ax3.plot(dates_matplotlib, rsi_traditional[-50:], 'purple', linewidth=2, label='RSI Tradicional')
+            ax3.axhline(y=70, color='red', linestyle='--', alpha=0.5)
+            ax3.axhline(y=30, color='green', linestyle='--', alpha=0.5)
+            ax3.axhline(y=50, color='gray', linestyle='-', alpha=0.3)
+            
+            ax3.set_ylabel('RSI Tradicional')
+            ax3.legend()
+            ax3.grid(True, alpha=0.3)
+            
+            # Gráfico de volumen
+            volumes = df['volume'].iloc[-50:].values
+            volume_colors = []
+            for i in range(len(dates_matplotlib)):
+                signal = volume_data['volume_signal'][-50+i] if len(volume_data['volume_signal']) > -50+i else 'NEUTRAL'
+                if signal == 'COMPRA':
+                    volume_colors.append('green')
+                elif signal == 'VENTA':
+                    volume_colors.append('red')
+                else:
+                    volume_colors.append('gray')
+            
+            ax4.bar(dates_matplotlib, volumes, color=volume_colors, alpha=0.6)
+            
+            # Marcar clusters de volumen
+            for i in range(len(dates_matplotlib)):
+                if volume_data['volume_clusters'][-50+i]:
+                    ax4.scatter(dates_matplotlib[i], max(volumes) * 1.1, 
+                              color='orange', s=50, marker='*', label='Cluster Volumen' if i == 0 else "")
+            
+            ax4.set_ylabel('Volumen')
+            ax4.legend()
+            ax4.grid(True, alpha=0.3)
+            
+            plt.tight_layout()
+            buffer = BytesIO()
+            plt.savefig(buffer, format='png', dpi=100)
+            buffer.seek(0)
+            plt.close()
+            
+            return buffer
+            
+        except Exception as e:
+            print(f"Error generando gráfico RSI Maverick Trend: {e}")
             return None
 
     # ==============================================
@@ -3189,6 +4131,38 @@ class TradingIndicator:
                     # Estrategia 15: Multi-Timeframe Confirmation
                     if interval in STRATEGY_TIMEFRAMES['Multi-Timeframe Confirmation']:
                         signal = self.check_multi_timeframe_confirmation_signal(symbol, interval)
+                        if signal:
+                            all_signals.append(signal)
+                    
+                    # NUEVAS ESTRATEGIAS
+                    
+                    # Estrategia 16: RSI Maverick DMI Divergence
+                    if interval in STRATEGY_TIMEFRAMES['RSI Maverick DMI Divergence']:
+                        signal = self.check_rsi_maverick_dmi_divergence_signal(symbol, interval)
+                        if signal:
+                            all_signals.append(signal)
+                    
+                    # Estrategia 17: RSI Maverick Stochastic Crossover
+                    if interval in STRATEGY_TIMEFRAMES['RSI Maverick Stochastic Crossover']:
+                        signal = self.check_rsi_maverick_stochastic_crossover_signal(symbol, interval)
+                        if signal:
+                            all_signals.append(signal)
+                    
+                    # Estrategia 18: RSI Maverick MACD Divergence
+                    if interval in STRATEGY_TIMEFRAMES['RSI Maverick MACD Divergence']:
+                        signal = self.check_rsi_maverick_macd_divergence_signal(symbol, interval)
+                        if signal:
+                            all_signals.append(signal)
+                    
+                    # Estrategia 19: Whale RSI Maverick Combo
+                    if interval in STRATEGY_TIMEFRAMES['Whale RSI Maverick Combo']:
+                        signal = self.check_whale_rsi_maverick_combo_signal(symbol, interval)
+                        if signal:
+                            all_signals.append(signal)
+                    
+                    # Estrategia 20: RSI Maverick Trend Reversal
+                    if interval in STRATEGY_TIMEFRAMES['RSI Maverick Trend Reversal']:
+                        signal = self.check_rsi_maverick_trend_reversal_signal(symbol, interval)
                         if signal:
                             all_signals.append(signal)
                     
@@ -3335,6 +4309,10 @@ def get_signals():
         rsi_traditional = indicator.calculate_rsi(close, 14)
         stochastic_data = indicator.calculate_stochastic_rsi(close)
         
+        # Calcular RSI Maverick
+        rsi_maverick = indicator.calculate_rsi_maverick(close)
+        rsi_maverick_div = indicator.get_rsi_maverick_divergence_signals(symbol, interval)
+        
         ma_9 = indicator.calculate_sma(close, 9)
         ma_21 = indicator.calculate_sma(close, 21)
         ma_50 = indicator.calculate_sma(close, 50)
@@ -3406,6 +4384,9 @@ def get_signals():
             'stoch_rsi': float(stochastic_data['stoch_rsi'][-1]),
             'stoch_k': float(stochastic_data['k_line'][-1]),
             'stoch_d': float(stochastic_data['d_line'][-1]),
+            'rsi_maverick': float(rsi_maverick[-1]) if rsi_maverick else 0.5,
+            'rsi_maverick_bullish_div': bool(rsi_maverick_div['bullish'][-1]) if rsi_maverick_div['bullish'] else False,
+            'rsi_maverick_bearish_div': bool(rsi_maverick_div['bearish'][-1]) if rsi_maverick_div['bearish'] else False,
             'ma200_condition': 'above' if current_price > float(ma_200[-1]) else 'below',
             'data': [],
             'indicators': {
@@ -3418,6 +4399,9 @@ def get_signals():
                 'stoch_rsi': [float(x) for x in stochastic_data['stoch_rsi'][-50:]],
                 'stoch_k': [float(x) for x in stochastic_data['k_line'][-50:]],
                 'stoch_d': [float(x) for x in stochastic_data['d_line'][-50:]],
+                'rsi_maverick': [float(x) for x in rsi_maverick[-50:]] if rsi_maverick else [0.5] * 50,
+                'rsi_maverick_bullish_div': [bool(x) for x in rsi_maverick_div['bullish'][-50:]] if rsi_maverick_div['bullish'] else [False] * 50,
+                'rsi_maverick_bearish_div': [bool(x) for x in rsi_maverick_div['bearish'][-50:]] if rsi_maverick_div['bearish'] else [False] * 50,
                 'ma_9': [float(x) for x in ma_9[-50:]],
                 'ma_21': [float(x) for x in ma_21[-50:]],
                 'ma_50': [float(x) for x in ma_50[-50:]],
@@ -3497,9 +4481,9 @@ def generate_report():
         if 'error' in signal_data:
             return jsonify({'error': 'No hay datos para generar el reporte'}), 400
         
-        fig = plt.figure(figsize=(14, 18))
+        fig = plt.figure(figsize=(14, 20))
         
-        ax1 = plt.subplot(10, 1, 1)
+        ax1 = plt.subplot(11, 1, 1)
         if 'data' in signal_data and signal_data['data']:
             dates = [datetime.strptime(d['timestamp'], '%Y-%m-%d %H:%M:%S') if isinstance(d['timestamp'], str) 
                     else d['timestamp'] for d in signal_data['data']]
@@ -3526,76 +4510,99 @@ def generate_report():
         ax1.grid(True, alpha=0.3)
         ax1.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M\n%d-%m'))
         
-        ax2 = plt.subplot(10, 1, 2, sharex=ax1)
-        if 'indicators' in signal_data and 'stoch_rsi' in signal_data['indicators']:
-            stoch_dates = dates_matplotlib[-len(signal_data['indicators']['stoch_rsi']):]
-            ax2.plot(stoch_dates, signal_data['indicators']['stoch_rsi'], 
-                    'blue', linewidth=1, label='RSI Estocástico')
-            ax2.plot(stoch_dates, signal_data['indicators']['stoch_k'], 
-                    'green', linewidth=1, label='%K')
-            ax2.plot(stoch_dates, signal_data['indicators']['stoch_d'], 
-                    'red', linewidth=1, label='%D')
-            ax2.axhline(y=80, color='red', linestyle='--', alpha=0.3)
-            ax2.axhline(y=20, color='green', linestyle='--', alpha=0.3)
-        ax2.set_ylabel('RSI Estocástico')
+        ax2 = plt.subplot(11, 1, 2, sharex=ax1)
+        if 'indicators' in signal_data and 'rsi_maverick' in signal_data['indicators']:
+            rsi_dates = dates_matplotlib[-len(signal_data['indicators']['rsi_maverick']):]
+            ax2.plot(rsi_dates, signal_data['indicators']['rsi_maverick'], 
+                    'blue', linewidth=2, label='RSI Maverick')
+            
+            # Marcar divergencias
+            if 'rsi_maverick_bullish_div' in signal_data['indicators']:
+                for i in range(len(rsi_dates)):
+                    if signal_data['indicators']['rsi_maverick_bullish_div'][i]:
+                        ax2.scatter(rsi_dates[i], signal_data['indicators']['rsi_maverick'][i], 
+                                  color='green', s=30, marker='^', label='Div Alcista' if i == 0 else "")
+                    if signal_data['indicators']['rsi_maverick_bearish_div'][i]:
+                        ax2.scatter(rsi_dates[i], signal_data['indicators']['rsi_maverick'][i], 
+                                  color='red', s=30, marker='v', label='Div Bajista' if i == 0 else "")
+            
+            ax2.axhline(y=0.8, color='red', linestyle='--', alpha=0.3)
+            ax2.axhline(y=0.2, color='green', linestyle='--', alpha=0.3)
+            ax2.axhline(y=0.5, color='gray', linestyle='-', alpha=0.2)
+        ax2.set_ylabel('RSI Maverick')
         ax2.legend()
         ax2.grid(True, alpha=0.3)
         
-        ax3 = plt.subplot(10, 1, 3, sharex=ax1)
-        if 'indicators' in signal_data and 'adx' in signal_data['indicators']:
-            adx_dates = dates_matplotlib[-len(signal_data['indicators']['adx']):]
-            ax3.plot(adx_dates, signal_data['indicators']['adx'], 
-                    'black', linewidth=2, label='ADX')
-            ax3.plot(adx_dates, signal_data['indicators']['plus_di'], 
-                    'green', linewidth=1, label='+DI')
-            ax3.plot(adx_dates, signal_data['indicators']['minus_di'], 
-                    'red', linewidth=1, label='-DI')
-            ax3.axhline(y=25, color='yellow', linestyle='--', alpha=0.7, label='Umbral 25')
-        ax3.set_ylabel('ADX/DMI')
+        ax3 = plt.subplot(11, 1, 3, sharex=ax1)
+        if 'indicators' in signal_data and 'stoch_rsi' in signal_data['indicators']:
+            stoch_dates = dates_matplotlib[-len(signal_data['indicators']['stoch_rsi']):]
+            ax3.plot(stoch_dates, signal_data['indicators']['stoch_rsi'], 
+                    'blue', linewidth=1, label='RSI Estocástico')
+            ax3.plot(stoch_dates, signal_data['indicators']['stoch_k'], 
+                    'green', linewidth=1, label='%K')
+            ax3.plot(stoch_dates, signal_data['indicators']['stoch_d'], 
+                    'red', linewidth=1, label='%D')
+            ax3.axhline(y=80, color='red', linestyle='--', alpha=0.3)
+            ax3.axhline(y=20, color='green', linestyle='--', alpha=0.3)
+        ax3.set_ylabel('RSI Estocástico')
         ax3.legend()
         ax3.grid(True, alpha=0.3)
         
-        ax4 = plt.subplot(10, 1, 4, sharex=ax1)
-        if 'indicators' in signal_data and 'rsi_traditional' in signal_data['indicators']:
-            rsi_dates = dates_matplotlib[-len(signal_data['indicators']['rsi_traditional']):]
-            ax4.plot(rsi_dates, signal_data['indicators']['rsi_traditional'], 
-                    'cyan', linewidth=2, label='RSI Tradicional')
-            ax4.axhline(y=80, color='red', linestyle='--', alpha=0.3)
-            ax4.axhline(y=20, color='green', linestyle='--', alpha=0.3)
-            ax4.axhline(y=50, color='gray', linestyle='-', alpha=0.2)
-        ax4.set_ylabel('RSI Tradicional')
+        ax4 = plt.subplot(11, 1, 4, sharex=ax1)
+        if 'indicators' in signal_data and 'adx' in signal_data['indicators']:
+            adx_dates = dates_matplotlib[-len(signal_data['indicators']['adx']):]
+            ax4.plot(adx_dates, signal_data['indicators']['adx'], 
+                    'black', linewidth=2, label='ADX')
+            ax4.plot(adx_dates, signal_data['indicators']['plus_di'], 
+                    'green', linewidth=1, label='+DI')
+            ax4.plot(adx_dates, signal_data['indicators']['minus_di'], 
+                    'red', linewidth=1, label='-DI')
+            ax4.axhline(y=25, color='yellow', linestyle='--', alpha=0.7, label='Umbral 25')
+        ax4.set_ylabel('ADX/DMI')
         ax4.legend()
         ax4.grid(True, alpha=0.3)
         
-        ax5 = plt.subplot(10, 1, 5, sharex=ax1)
-        if 'indicators' in signal_data and 'macd' in signal_data['indicators']:
-            macd_dates = dates_matplotlib[-len(signal_data['indicators']['macd']):]
-            ax5.plot(macd_dates, signal_data['indicators']['macd'], 
-                    'blue', linewidth=1, label='MACD')
-            ax5.plot(macd_dates, signal_data['indicators']['macd_signal'], 
-                    'red', linewidth=1, label='Señal')
-            
-            colors = ['green' if x > 0 else 'red' for x in signal_data['indicators']['macd_histogram']]
-            ax5.bar(macd_dates, signal_data['indicators']['macd_histogram'], 
-                   color=colors, alpha=0.6, label='Histograma')
-            
-            ax5.axhline(y=0, color='gray', linestyle='-', alpha=0.5)
-        ax5.set_ylabel('MACD')
+        ax5 = plt.subplot(11, 1, 5, sharex=ax1)
+        if 'indicators' in signal_data and 'rsi_traditional' in signal_data['indicators']:
+            rsi_trad_dates = dates_matplotlib[-len(signal_data['indicators']['rsi_traditional']):]
+            ax5.plot(rsi_trad_dates, signal_data['indicators']['rsi_traditional'], 
+                    'cyan', linewidth=2, label='RSI Tradicional')
+            ax5.axhline(y=80, color='red', linestyle='--', alpha=0.3)
+            ax5.axhline(y=20, color='green', linestyle='--', alpha=0.3)
+            ax5.axhline(y=50, color='gray', linestyle='-', alpha=0.2)
+        ax5.set_ylabel('RSI Tradicional')
         ax5.legend()
         ax5.grid(True, alpha=0.3)
         
-        ax6 = plt.subplot(10, 1, 6, sharex=ax1)
-        if 'indicators' in signal_data and 'whale_pump' in signal_data['indicators']:
-            whale_dates = dates_matplotlib[-len(signal_data['indicators']['whale_pump']):]
-            ax6.bar(whale_dates, signal_data['indicators']['whale_pump'], 
-                   color='green', alpha=0.7, label='Ballenas Compradoras')
-            ax6.bar(whale_dates, [-x for x in signal_data['indicators']['whale_dump']], 
-                   color='red', alpha=0.7, label='Ballenas Vendedoras')
-        ax6.set_ylabel('Fuerza Ballenas')
+        ax6 = plt.subplot(11, 1, 6, sharex=ax1)
+        if 'indicators' in signal_data and 'macd' in signal_data['indicators']:
+            macd_dates = dates_matplotlib[-len(signal_data['indicators']['macd']):]
+            ax6.plot(macd_dates, signal_data['indicators']['macd'], 
+                    'blue', linewidth=1, label='MACD')
+            ax6.plot(macd_dates, signal_data['indicators']['macd_signal'], 
+                    'red', linewidth=1, label='Señal')
+            
+            colors = ['green' if x > 0 else 'red' for x in signal_data['indicators']['macd_histogram']]
+            ax6.bar(macd_dates, signal_data['indicators']['macd_histogram'], 
+                   color=colors, alpha=0.6, label='Histograma')
+            
+            ax6.axhline(y=0, color='gray', linestyle='-', alpha=0.5)
+        ax6.set_ylabel('MACD')
         ax6.legend()
         ax6.grid(True, alpha=0.3)
         
-        ax7 = plt.subplot(10, 1, 7, sharex=ax1)
+        ax7 = plt.subplot(11, 1, 7, sharex=ax1)
+        if 'indicators' in signal_data and 'whale_pump' in signal_data['indicators']:
+            whale_dates = dates_matplotlib[-len(signal_data['indicators']['whale_pump']):]
+            ax7.bar(whale_dates, signal_data['indicators']['whale_pump'], 
+                   color='green', alpha=0.7, label='Ballenas Compradoras')
+            ax7.bar(whale_dates, [-x for x in signal_data['indicators']['whale_dump']], 
+                   color='red', alpha=0.7, label='Ballenas Vendedoras')
+        ax7.set_ylabel('Fuerza Ballenas')
+        ax7.legend()
+        ax7.grid(True, alpha=0.3)
+        
+        ax8 = plt.subplot(11, 1, 8, sharex=ax1)
         if 'indicators' in signal_data and 'volume_ratio' in signal_data['indicators']:
             volume_dates = dates_matplotlib[-len(signal_data['indicators']['volume_ratio']):]
             
@@ -3610,51 +4617,51 @@ def generate_report():
                     colors.append('gray')
             
             volumes = [d['volume'] for d in signal_data['data'][-50:]]
-            ax7.bar(volume_dates, volumes, color=colors, alpha=0.6, label='Volumen')
+            ax8.bar(volume_dates, volumes, color=colors, alpha=0.6, label='Volumen')
             
-            ax7.plot(volume_dates, signal_data['indicators']['volume_ma'][-50:], 
+            ax8.plot(volume_dates, signal_data['indicators']['volume_ma'][-50:], 
                     'yellow', linewidth=1, label='MA Volumen')
-        ax7.set_ylabel('Volumen')
-        ax7.legend()
-        ax7.grid(True, alpha=0.3)
+        ax8.set_ylabel('Volumen')
+        ax8.legend()
+        ax8.grid(True, alpha=0.3)
         
-        ax8 = plt.subplot(10, 1, 8, sharex=ax1)
+        ax9 = plt.subplot(11, 1, 9, sharex=ax1)
         if 'indicators' in signal_data and 'trend_strength' in signal_data['indicators']:
             trend_dates = dates_matplotlib[-len(signal_data['indicators']['trend_strength']):]
             trend_strength = signal_data['indicators']['trend_strength'][-50:]
             colors = signal_data['indicators']['colors'][-50:]
             
             for i in range(len(trend_dates)):
-                ax8.bar(trend_dates[i], trend_strength[i], color=colors[i], alpha=0.7, width=0.8)
+                ax9.bar(trend_dates[i], trend_strength[i], color=colors[i], alpha=0.7, width=0.8)
             
             if 'high_zone_threshold' in signal_data['indicators']:
                 threshold = signal_data['indicators']['high_zone_threshold']
-                ax8.axhline(y=threshold, color='orange', linestyle='--', alpha=0.7, 
+                ax9.axhline(y=threshold, color='orange', linestyle='--', alpha=0.7, 
                            label=f'Umbral Alto ({threshold:.1f}%)')
-                ax8.axhline(y=-threshold, color='orange', linestyle='--', alpha=0.7)
-        ax8.set_ylabel('Fuerza Tendencia %')
-        ax8.legend()
-        ax8.grid(True, alpha=0.3)
-        
-        ax9 = plt.subplot(10, 1, 9, sharex=ax1)
-        if 'indicators' in signal_data and 'bb_upper' in signal_data['indicators']:
-            bb_dates = dates_matplotlib[-len(signal_data['indicators']['bb_upper']):]
-            ax9.plot(bb_dates, closes[-50:], 'blue', linewidth=1, label='Precio')
-            ax9.plot(bb_dates, signal_data['indicators']['bb_upper'][-50:], 
-                    'orange', alpha=0.7, linewidth=1, label='BB Superior')
-            ax9.plot(bb_dates, signal_data['indicators']['bb_middle'][-50:], 
-                    'orange', alpha=0.5, linewidth=1, label='BB Media')
-            ax9.plot(bb_dates, signal_data['indicators']['bb_lower'][-50:], 
-                    'orange', alpha=0.7, linewidth=1, label='BB Inferior')
-            ax9.fill_between(bb_dates, signal_data['indicators']['bb_lower'][-50:], 
-                           signal_data['indicators']['bb_upper'][-50:], 
-                           color='orange', alpha=0.1)
-        ax9.set_ylabel('Bollinger Bands')
+                ax9.axhline(y=-threshold, color='orange', linestyle='--', alpha=0.7)
+        ax9.set_ylabel('Fuerza Tendencia %')
         ax9.legend()
         ax9.grid(True, alpha=0.3)
         
-        ax10 = plt.subplot(10, 1, 10)
-        ax10.axis('off')
+        ax10 = plt.subplot(11, 1, 10, sharex=ax1)
+        if 'indicators' in signal_data and 'bb_upper' in signal_data['indicators']:
+            bb_dates = dates_matplotlib[-len(signal_data['indicators']['bb_upper']):]
+            ax10.plot(bb_dates, closes[-50:], 'blue', linewidth=1, label='Precio')
+            ax10.plot(bb_dates, signal_data['indicators']['bb_upper'][-50:], 
+                    'orange', alpha=0.7, linewidth=1, label='BB Superior')
+            ax10.plot(bb_dates, signal_data['indicators']['bb_middle'][-50:], 
+                    'orange', alpha=0.5, linewidth=1, label='BB Media')
+            ax10.plot(bb_dates, signal_data['indicators']['bb_lower'][-50:], 
+                    'orange', alpha=0.7, linewidth=1, label='BB Inferior')
+            ax10.fill_between(bb_dates, signal_data['indicators']['bb_lower'][-50:], 
+                           signal_data['indicators']['bb_upper'][-50:], 
+                           color='orange', alpha=0.1)
+        ax10.set_ylabel('Bollinger Bands')
+        ax10.legend()
+        ax10.grid(True, alpha=0.3)
+        
+        ax11 = plt.subplot(11, 1, 11)
+        ax11.axis('off')
         
         signal_info = f"""
         SEÑAL: {signal_data['signal']}
@@ -3668,6 +4675,8 @@ def generate_report():
         ATR: {signal_data['atr']:.6f} ({signal_data['atr_percentage']*100:.1f}%)
         
         INDICADORES:
+        RSI Maverick: {signal_data['rsi_maverick']:.3f}
+        Divergencia: {"Alcista" if signal_data['rsi_maverick_bullish_div'] else "Bajista" if signal_data['rsi_maverick_bearish_div'] else "Ninguna"}
         RSI Tradicional: {signal_data['rsi_traditional']:.1f}
         RSI Estocástico: {signal_data['stoch_rsi']:.1f}
         ADX: {signal_data['adx']:.1f}
@@ -3675,7 +4684,7 @@ def generate_report():
         -DI: {signal_data['minus_di']:.1f}
         """
         
-        ax10.text(0.1, 0.9, signal_info, transform=ax10.transAxes, fontsize=10,
+        ax11.text(0.1, 0.9, signal_info, transform=ax11.transAxes, fontsize=10,
                 verticalalignment='top', bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.8))
         
         plt.tight_layout()
